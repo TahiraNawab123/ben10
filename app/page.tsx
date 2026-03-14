@@ -379,13 +379,22 @@ export default function OmnidexPage() {
                     </div>
                   </div>
 
-                  {/* CTA Button */}
-                  <button
-                    className="self-start font-mono text-[10px] sm:text-xs tracking-[0.15em] border border-primary/60 text-primary px-5 sm:px-8 py-2.5 sm:py-3.5 rounded flex items-center gap-2 sm:gap-3 hover:bg-primary/10 hover:neon-glow transition-all cursor-pointer active:scale-95"
-                  >
-                    INITIATE SEQUENCE
-                    <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
-                  </button>
+                  {/* CTA Buttons */}
+                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                    <button
+                      className="self-start font-mono text-[10px] sm:text-xs tracking-[0.15em] border border-primary/60 text-primary px-5 sm:px-8 py-2.5 sm:py-3.5 rounded flex items-center gap-2 sm:gap-3 hover:bg-primary/10 hover:neon-glow transition-all cursor-pointer active:scale-95"
+                    >
+                      INITIATE SEQUENCE
+                      <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
+                    </button>
+                    <button
+                      onClick={() => window.location.href = '/select-theme'}
+                      className="self-start font-mono text-[10px] sm:text-xs tracking-[0.15em] bg-primary text-primary-foreground px-5 sm:px-8 py-2.5 sm:py-3.5 rounded flex items-center gap-2 sm:gap-3 hover:bg-primary/90 hover:neon-glow-strong transition-all cursor-pointer active:scale-95"
+                    >
+                      LAUNCH GAME
+                      <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
