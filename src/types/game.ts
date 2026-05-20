@@ -1,11 +1,14 @@
 export interface Character {
   id: string
   name: string
+  description: string
   image: string
   color: string
-  strength: number
-  velocity: number
-  intellect: number
+  stats: {
+    strength: number
+    velocity: number
+    intellect: number
+  }
   primaryPower: string
   abilities: string[]
   ability: {

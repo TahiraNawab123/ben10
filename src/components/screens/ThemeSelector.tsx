@@ -1,8 +1,9 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Mountain, Snowflake, Wind, ArrowLeft } from 'lucide-react'
 import { gameStore } from '@/src/store/gameStore'
-import { Mountain, Snowflake, Wind } from 'lucide-react'
 
 interface Theme {
   id: 'mountains' | 'ice' | 'desert'
@@ -10,6 +11,7 @@ interface Theme {
   description: string
   icon: React.ReactNode
   color: string
+  bgGradient: string
 }
 
 const THEMES: Theme[] = [
@@ -17,23 +19,26 @@ const THEMES: Theme[] = [
     id: 'mountains',
     name: 'MOUNTAINS',
     description: 'Rocky peaks and challenging terrain',
-    icon: <Mountain className="w-12 h-12" />,
-    color: 'from-amber-600 to-amber-900'
+    icon: <Mountain className="w-16 h-16" />,
+    color: 'from-amber-600 to-amber-900',
+    bgGradient: 'from-amber-900/20 to-transparent',
   },
   {
     id: 'ice',
     name: 'ICE WORLD',
     description: 'Slippery slopes and frozen hazards',
-    icon: <Snowflake className="w-12 h-12" />,
-    color: 'from-blue-400 to-cyan-600'
+    icon: <Snowflake className="w-16 h-16" />,
+    color: 'from-blue-400 to-cyan-600',
+    bgGradient: 'from-blue-900/20 to-transparent',
   },
   {
     id: 'desert',
     name: 'DESERT',
     description: 'Scorching sands and sandstorms',
-    icon: <Wind className="w-12 h-12" />,
-    color: 'from-yellow-500 to-orange-600'
-  }
+    icon: <Wind className="w-16 h-16" />,
+    color: 'from-yellow-500 to-orange-600',
+    bgGradient: 'from-yellow-900/20 to-transparent',
+  },
 ]
 
 export function ThemeSelector() {
@@ -46,49 +51,115 @@ export function ThemeSelector() {
   }
 
   return (
-    <div className="w-full min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center p-6">
-      <div className="absolute inset-0 opacity-10 pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-green-500 rounded-full mix-blend-multiply filter blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500 rounded-full mix-blend-multiply filter blur-3xl" />
-      </div>
+    <div className="relative w-full min-h-screen bg-dark-bg overflow-hidden flex flex-col items-center justify-center p-6">
+      <div className="fixed inset-0 grid-bg pointer-events-none" />
 
-      <div className="relative z-10 max-w-4xl text-center">
-        <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-cyan-400 mb-4">
+      <motion.button
+        onClick={() => router.back()}
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="absolute top-6 left-6 flex items-center gap-2 text-muted-foreground hover:text-green-400 transition-colors z-20 group"
+      >
+        <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+        <span className="font-mono">Back</span>
+      </motion.button>
+
+      <motion.div
+        className="relative z-10 max-w-5xl text-center"
+        initial={{ opacity: 0, y: -40 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <motion.h1
+          className="text-4xl md:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-400 via-cyan to-green-400 mb-4 font-mono"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
           SELECT YOUR ARENA
-        </h1>
-        <p className="text-gray-300 mb-12">Choose the environment where you'll test your abilities</p>
+        </motion.h1>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {THEMES.map(theme => (
-            <button
+        <motion.p
+          className="text-muted-foreground font-mono text-sm md:text-base mb-12"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+        >
+          Choose the environment where you will test your abilities
+        </motion.p>
+
+        <motion.div
+          className="grid grid-cols-1 md:grid-cols-3 gap-6"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.4, staggerChildren: 0.1 }}
+        >
+          {THEMES.map((theme, index) => (
+            <motion.button
               key={theme.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.5 + index * 0.1 }}
+              whileHover={{ scale: 1.05, y: -8 }}
+              whileTap={{ scale: 0.95 }}
               onClick={() => handleSelect(theme.id)}
-              className="group relative overflow-hidden rounded-lg border-2 border-slate-600 hover:border-green-400 p-8 bg-slate-800 hover:bg-slate-700 transition-all transform hover:scale-105"
+              className={`
+                group relative overflow-hidden rounded-lg border border-muted
+                hover:border-green-400 p-8 bg-gradient-to-br
+                transition-all duration-300 neon-glow
+                hover:neon-glow-strong ripple-button
+              `}
             >
-              <div className={`absolute inset-0 bg-gradient-to-br ${theme.color} opacity-10 group-hover:opacity-20 transition-opacity`} />
+              <div
+                className={`absolute inset-0 bg-gradient-to-br ${theme.bgGradient} group-hover:opacity-100 opacity-50 transition-opacity`}
+              />
 
-              <div className="relative z-10">
-                <div className="text-green-400 mb-4 flex justify-center">
+              <div className="relative z-10 flex flex-col items-center">
+                <motion.div
+                  className={`text-transparent bg-clip-text bg-gradient-to-r ${theme.color} mb-4 group-hover:scale-125 transition-transform`}
+                  animate={{ y: [0, -8, 0] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
                   {theme.icon}
-                </div>
+                </motion.div>
 
-                <h2 className="text-2xl font-black text-green-300 mb-2">{theme.name}</h2>
-                <p className="text-gray-400 text-sm mb-6">{theme.description}</p>
+                <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-cyan mb-2 font-mono">
+                  {theme.name}
+                </h2>
+                <p className="text-muted-foreground text-sm mb-6 font-mono">
+                  {theme.description}
+                </p>
 
-                <div className="px-6 py-2 bg-gradient-to-r from-green-500 to-cyan-500 text-slate-900 font-bold rounded inline-block">
+                <motion.div
+                  className={`px-6 py-2 bg-gradient-to-r ${theme.color} text-dark-bg font-bold rounded font-mono text-sm`}
+                  initial={{ opacity: 0 }}
+                  whileHover={{ opacity: 1 }}
+                  animate={{ opacity: 0.8 }}
+                  transition={{ duration: 0.3 }}
+                >
                   SELECT
-                </div>
+                </motion.div>
               </div>
 
-              <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-green-400 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            </button>
+              <motion.div
+                className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-green-400 to-transparent"
+                initial={{ opacity: 0 }}
+                whileHover={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+              />
+            </motion.button>
           ))}
-        </div>
+        </motion.div>
 
-        <p className="text-gray-500 text-sm mt-12">
-          Different environments offer unique challenges and opportunities
-        </p>
-      </div>
+        <motion.p
+          className="text-muted-foreground text-xs md:text-sm mt-12 font-mono"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, delay: 1 }}
+        >
+          Different environments offer unique challenges and obstacles
+        </motion.p>
+      </motion.div>
     </div>
   )
 }

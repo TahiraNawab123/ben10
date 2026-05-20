@@ -2,164 +2,214 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
+import { ChevronRight, ArrowLeft } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { CHARACTERS } from '@/src/data/characters'
 import { gameStore } from '@/src/store/gameStore'
-import { ChevronRight, BarChart3 } from 'lucide-react'
+import { CharacterCard } from '@/src/components/cards/CharacterCard'
 
 interface CharacterSelectorProps {
   onSelect?: (characterId: string) => void
 }
 
 export function CharacterSelector({ onSelect }: CharacterSelectorProps) {
-  const [selected, setSelected] = useState<string>('')
-  const [showStats, setShowStats] = useState(false)
+  const [selectedCharacterId, setSelectedCharacterId] = useState<string>('')
   const router = useRouter()
 
-  const selectedChar = CHARACTERS.find(c => c.id === selected)
+  const selectedCharacter = CHARACTERS.find((c) => c.id === selectedCharacterId)
 
-  const handleStart = () => {
-    if (selected && selectedChar) {
-      gameStore.initGame(selectedChar, 'mountains')
-      onSelect?.(selected)
+  const handleSelectCharacter = (characterId: string) => {
+    setSelectedCharacterId(characterId)
+    const character = CHARACTERS.find((c) => c.id === characterId)
+    if (character) {
+      gameStore.setState({ character })
+    }
+  }
+
+  const handleContinue = () => {
+    if (selectedCharacterId && selectedCharacter) {
+      onSelect?.(selectedCharacterId)
       router.push('/game/select-theme')
     }
   }
 
   return (
-    <div className="w-full min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 p-6">
-      <div className="absolute inset-0 opacity-10 pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-green-500 rounded-full mix-blend-multiply filter blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500 rounded-full mix-blend-multiply filter blur-3xl" />
-      </div>
+    <div className="min-h-screen bg-dark-bg overflow-x-hidden">
+      <div className="fixed inset-0 grid-bg pointer-events-none" />
 
-      <div className="relative z-10 max-w-6xl mx-auto">
-        <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-cyan-400 mb-12 text-center">
-          SELECT YOUR ALIEN
-        </h1>
+      <div className="relative max-w-7xl mx-auto px-4 py-8">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="flex items-center justify-between mb-12"
+        >
+          <button
+            onClick={() => router.back()}
+            className="inline-flex items-center gap-2 text-muted-foreground hover:text-green-400 transition-colors duration-300 group"
+          >
+            <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+            <span className="font-mono">Back</span>
+          </button>
+          <h1 className="gradient-text text-3xl md:text-5xl font-bold font-mono">
+            SELECT YOUR ALIEN
+          </h1>
+          <div className="w-20" />
+        </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {CHARACTERS.map(char => (
-                <div
-                  key={char.id}
-                  onClick={() => {
-                    setSelected(char.id)
-                    setShowStats(true)
-                  }}
-                  className={`cursor-pointer group relative overflow-hidden rounded-lg border-2 transition-all transform hover:scale-105 ${
-                    selected === char.id
-                      ? 'border-green-400 shadow-2xl shadow-green-500/50 bg-slate-700'
-                      : 'border-slate-600 hover:border-cyan-400'
-                  }`}
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="text-muted-foreground text-center mb-12 font-mono text-sm md:text-base max-w-2xl mx-auto"
+        >
+          Choose your transformation and master its unique abilities
+        </motion.p>
+
+        <motion.div
+          layout
+          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-12"
+        >
+          {CHARACTERS.map((character, index) => (
+            <motion.div
+              key={character.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: index * 0.05 }}
+            >
+              <CharacterCard
+                character={character}
+                isSelected={selectedCharacterId === character.id}
+                onClick={() => handleSelectCharacter(character.id)}
+              />
+            </motion.div>
+          ))}
+        </motion.div>
+
+        <AnimatePresence mode="wait">
+          {selectedCharacter && (
+            <motion.div
+              key={selectedCharacter.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.4 }}
+              className="pt-8 border-t border-muted"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.4, delay: 0.1 }}
                 >
-                  <div className="relative w-full aspect-square bg-slate-800">
-                    {char.image && (
-                      <Image
-                        src={char.image}
-                        alt={char.name}
-                        fill
-                        className="object-cover group-hover:scale-110 transition-transform"
-                        onError={(e) => {
-                          const img = e.target as HTMLImageElement
-                          img.style.display = 'none'
-                        }}
-                      />
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60" />
+                  <h2 className="gradient-text text-2xl md:text-3xl font-bold font-mono mb-4">
+                    {selectedCharacter.name}
+                  </h2>
+                  <p className="text-foreground mb-6 leading-relaxed">
+                    {selectedCharacter.description}
+                  </p>
+
+                  <div className="space-y-4">
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.2 }}
+                      className="p-4 bg-muted/30 rounded-lg border border-muted"
+                    >
+                      <p className="text-cyan text-xs font-mono font-semibold mb-1">
+                        PRIMARY ABILITY
+                      </p>
+                      <p className="text-green-400 font-mono font-bold mb-2">
+                        {selectedCharacter.ability.name}
+                      </p>
+                      <p className="text-muted-foreground text-sm">
+                        {selectedCharacter.ability.description}
+                      </p>
+                      <div className="flex gap-6 mt-4 text-xs font-mono">
+                        <div>
+                          <p className="text-muted-foreground mb-1">Duration</p>
+                          <p className="text-green-400 font-bold">
+                            {selectedCharacter.ability.duration}s
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground mb-1">Cooldown</p>
+                          <p className="text-green-400 font-bold">
+                            {selectedCharacter.ability.cooldown}s
+                          </p>
+                        </div>
+                      </div>
+                    </motion.div>
                   </div>
+                </motion.div>
 
-                  <div className="p-3 bg-slate-900 bg-opacity-90">
-                    <p className="font-black text-sm text-green-300">{char.name}</p>
-                    <p className="text-xs text-gray-400">{char.primaryPower}</p>
-                  </div>
-
-                  {selected === char.id && (
-                    <div className="absolute top-2 right-2 w-3 h-3 bg-green-400 rounded-full shadow-lg shadow-green-400/50" />
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {selected && selectedChar && (
-            <div className="lg:col-span-1">
-              <div className="bg-slate-800 border-2 border-green-500 rounded-lg p-6 sticky top-6">
-                <div className="aspect-square relative mb-6 rounded-lg overflow-hidden border border-green-400">
-                  {selectedChar.image && (
-                    <Image
-                      src={selectedChar.image}
-                      alt={selectedChar.name}
-                      fill
-                      className="object-cover"
-                      onError={(e) => {
-                        const img = e.target as HTMLImageElement
-                        img.style.display = 'none'
-                      }}
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.4, delay: 0.1 }}
+                  className="flex flex-col justify-between"
+                >
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-mono font-bold text-green-400">STATS</h3>
+                    <StatLine
+                      label="Strength"
+                      value={selectedCharacter.stats.strength}
+                      delay={0.2}
                     />
-                  )}
-                </div>
-
-                <h2 className="text-2xl font-black text-green-300 mb-2">{selectedChar.name}</h2>
-                <p className="text-sm text-gray-300 mb-4">{selectedChar.primaryPower}</p>
-
-                <div className="space-y-3 mb-6 pb-6 border-b border-slate-600">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-400 text-sm">STRENGTH</span>
-                    <div className="flex gap-1">
-                      {Array.from({ length: 10 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className={`w-2 h-6 rounded-sm ${i < selectedChar.strength / 10 ? 'bg-red-500' : 'bg-slate-600'}`}
-                        />
-                      ))}
-                    </div>
+                    <StatLine
+                      label="Velocity"
+                      value={selectedCharacter.stats.velocity}
+                      delay={0.3}
+                    />
+                    <StatLine
+                      label="Intellect"
+                      value={selectedCharacter.stats.intellect}
+                      delay={0.4}
+                    />
                   </div>
 
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-400 text-sm">VELOCITY</span>
-                    <div className="flex gap-1">
-                      {Array.from({ length: 10 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className={`w-2 h-6 rounded-sm ${i < selectedChar.velocity / 10 ? 'bg-blue-500' : 'bg-slate-600'}`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-400 text-sm">INTELLECT</span>
-                    <div className="flex gap-1">
-                      {Array.from({ length: 10 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className={`w-2 h-6 rounded-sm ${i < selectedChar.intellect / 10 ? 'bg-purple-500' : 'bg-slate-600'}`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mb-6">
-                  <p className="text-xs text-gray-400 mb-2 font-bold">SPECIAL ABILITY</p>
-                  <p className="text-sm text-green-300 mb-2">{selectedChar.ability.name}</p>
-                  <p className="text-xs text-gray-400">{selectedChar.ability.description}</p>
-                </div>
-
-                <button
-                  onClick={handleStart}
-                  className="w-full px-6 py-3 bg-gradient-to-r from-green-500 to-cyan-500 text-slate-900 font-black rounded-lg hover:shadow-2xl hover:shadow-green-500/50 transform hover:scale-105 transition-all flex items-center justify-center gap-2"
-                >
-                  START
-                  <ChevronRight className="w-5 h-5" />
-                </button>
+                  <motion.button
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                    onClick={handleContinue}
+                    className="w-full px-6 py-4 bg-gradient-to-r from-green-400 to-cyan hover:from-green-300 hover:to-cyan/80 text-dark-bg font-bold font-mono rounded-lg transition-all duration-300 flex items-center justify-center gap-2 group neon-glow-strong hover:neon-glow-dual ripple-button mt-8"
+                  >
+                    <span>Continue to Theme Selection</span>
+                    <ChevronRight
+                      size={20}
+                      className="group-hover:translate-x-1 transition-transform"
+                    />
+                  </motion.button>
+                </motion.div>
               </div>
-            </div>
+            </motion.div>
           )}
-        </div>
+        </AnimatePresence>
       </div>
     </div>
+  )
+}
+
+function StatLine({ label, value, delay }: { label: string; value: number; delay: number }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay }}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-muted-foreground font-mono text-sm">{label}</span>
+        <span className="text-green-400 font-mono font-bold">{value}/10</span>
+      </div>
+      <div className="h-2 bg-muted rounded-full overflow-hidden">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${(value / 10) * 100}%` }}
+          transition={{ duration: 0.8, delay: delay + 0.2, ease: 'easeOut' }}
+          className="h-full bg-gradient-to-r from-green-400 to-cyan"
+        />
+      </div>
+    </motion.div>
   )
 }

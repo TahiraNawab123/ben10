@@ -4,26 +4,30 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #050a08;
-  --foreground: #e0e8e4;
-  --card: #0a1410;
-  --card-foreground: #e0e8e4;
-  --popover: #0a1410;
-  --popover-foreground: #e0e8e4;
-  --primary: #00ff88;
-  --primary-foreground: #050a08;
-  --secondary: #0d1f17;
-  --secondary-foreground: #e0e8e4;
-  --muted: #0d1f17;
-  --muted-foreground: #6b8a7a;
-  --accent: #00ff88;
-  --accent-foreground: #050a08;
+  --background: #050a0f;
+  --foreground: #e0e8f0;
+  --card: #0a0f1f;
+  --card-foreground: #e0e8f0;
+  --popover: #0a0f1f;
+  --popover-foreground: #e0e8f0;
+  --primary: #00ff41;
+  --primary-foreground: #050a0f;
+  --secondary: #00d4ff;
+  --secondary-foreground: #050a0f;
+  --muted: #1a2535;
+  --muted-foreground: #6b8a9a;
+  --accent: #00ff41;
+  --accent-foreground: #050a0f;
+  --accent-secondary: #00d4ff;
   --destructive: #ff3b5c;
   --destructive-foreground: #ffffff;
-  --border: #1a3328;
-  --input: #1a3328;
-  --ring: #00ff88;
+  --border: #1a2535;
+  --input: #1a2535;
+  --ring: #00ff41;
   --radius: 0.5rem;
+  --cyan: #00d4ff;
+  --green: #00ff41;
+  --dark-bg: #0a0f1f;
 }
 
 @theme inline {
@@ -92,22 +96,100 @@
   background: #00ff88;
 }
 
-/* Neon glow */
+/* Neon glow effects */
 .neon-glow {
-  box-shadow: 0 0 15px rgba(0, 255, 136, 0.3), 0 0 30px rgba(0, 255, 136, 0.1), inset 0 0 15px rgba(0, 255, 136, 0.05);
+  box-shadow: 0 0 15px rgba(0, 255, 65, 0.4), 0 0 30px rgba(0, 255, 65, 0.15), inset 0 0 15px rgba(0, 255, 65, 0.08);
 }
 
 .neon-glow-strong {
-  box-shadow: 0 0 20px rgba(0, 255, 136, 0.5), 0 0 40px rgba(0, 255, 136, 0.2), inset 0 0 20px rgba(0, 255, 136, 0.1);
+  box-shadow: 0 0 25px rgba(0, 255, 65, 0.6), 0 0 50px rgba(0, 255, 65, 0.3), inset 0 0 20px rgba(0, 255, 65, 0.12);
+}
+
+.neon-glow-cyan {
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.5), 0 0 40px rgba(0, 212, 255, 0.25);
+}
+
+.neon-glow-dual {
+  box-shadow: 0 0 20px rgba(0, 255, 65, 0.4), 0 0 25px rgba(0, 212, 255, 0.3), inset 0 0 20px rgba(0, 212, 255, 0.08);
 }
 
 /* Text glow */
 .text-glow-green {
-  text-shadow: 0 0 10px rgba(0, 255, 136, 0.5), 0 0 20px rgba(0, 255, 136, 0.3);
+  text-shadow: 0 0 15px rgba(0, 255, 65, 0.6), 0 0 30px rgba(0, 255, 65, 0.3);
+}
+
+.text-glow-cyan {
+  text-shadow: 0 0 15px rgba(0, 212, 255, 0.6), 0 0 30px rgba(0, 212, 255, 0.3);
 }
 
 .text-glow-red {
-  text-shadow: 0 0 10px rgba(255, 59, 92, 0.5), 0 0 20px rgba(255, 59, 92, 0.3);
+  text-shadow: 0 0 10px rgba(255, 59, 92, 0.6), 0 0 20px rgba(255, 59, 92, 0.3);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #00ff41 0%, #00d4ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Button ripple effect */
+.ripple-button {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple-button::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(0, 255, 65, 0.3);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.ripple-button:active::after {
+  animation: ripple 0.6s ease-out;
+}
+
+/* Ripple animation */
+@keyframes ripple {
+  to {
+    width: 500px;
+    height: 500px;
+    opacity: 0;
+  }
+}
+
+/* Glow pulse */
+@keyframes glow-pulse {
+  0%, 100% { 
+    box-shadow: 0 0 15px rgba(0, 255, 65, 0.4), 0 0 30px rgba(0, 255, 65, 0.15);
+  }
+  50% { 
+    box-shadow: 0 0 25px rgba(0, 255, 65, 0.6), 0 0 45px rgba(0, 255, 65, 0.25);
+  }
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+/* Float animation */
+@keyframes float-up {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Progress bar animation */
