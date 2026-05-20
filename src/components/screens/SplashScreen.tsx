@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
 
 export function SplashScreen() {
   const [isLoaded, setIsLoaded] = useState(false)
@@ -12,78 +11,58 @@ export function SplashScreen() {
   }, [])
 
   return (
-    <div className="relative w-full h-screen bg-dark-bg flex items-center justify-center overflow-hidden">
-      <div className="fixed inset-0 grid-bg pointer-events-none opacity-30" />
-
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/3 left-1/4 w-80 h-80 bg-green-500 rounded-full mix-blend-multiply opacity-20 blur-2xl" />
-        <div className="absolute bottom-1/3 right-1/4 w-80 h-80 bg-cyan-500 rounded-full mix-blend-multiply opacity-20 blur-2xl" />
-      </div>
-
-      <motion.div
-        className="relative z-10 text-center"
-        initial={{ opacity: 0 }}
-        animate={isLoaded ? { opacity: 1 } : {}}
-        transition={{ duration: 0.6 }}
-      >
-        <div className="mb-8">
-          <motion.h1
-            className="text-7xl md:text-9xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 via-cyan to-green-400 tracking-widest mb-2 font-mono"
-            initial={{ opacity: 0, scale: 0.9, y: -30 }}
-            animate={isLoaded ? { opacity: 1, scale: 1, y: 0 } : {}}
-            transition={{ duration: 0.7, delay: 0.1 }}
+    <div className="relative w-full h-screen flex items-center justify-center overflow-hidden" style={{
+      background: 'linear-gradient(135deg, #0a1a2e 0%, #16213e 30%, #0f5f4f 60%, #1a4d3e 100%)'
+    }}>
+      <div className="relative z-10 text-center px-4">
+        <div className="mb-6">
+          <h1 
+            className="text-8xl md:text-9xl font-black tracking-wider mb-2"
+            style={{
+              color: '#00ffff',
+              textShadow: '0 0 30px rgba(0, 255, 255, 0.8), 0 0 60px rgba(0, 255, 255, 0.4), 0 4px 8px rgba(0, 0, 0, 0.5)'
+            }}
           >
             BEN10
-          </motion.h1>
+          </h1>
 
-          <motion.p
-            className="text-xl md:text-2xl text-cyan font-bold tracking-widest font-mono"
-            initial={{ opacity: 0, y: -15 }}
-            animate={isLoaded ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.6, delay: 0.3 }}
+          <p 
+            className="text-2xl md:text-3xl font-bold tracking-widest"
+            style={{ color: '#00ff88' }}
           >
             ENDLESS RUNNER
-          </motion.p>
+          </p>
         </div>
 
-        <motion.p
-          className="text-muted-foreground mb-12 text-base md:text-lg max-w-md mx-auto font-mono"
-          initial={{ opacity: 0 }}
-          animate={isLoaded ? { opacity: 1 } : {}}
-          transition={{ duration: 0.6, delay: 0.5 }}
+        <p 
+          className="mb-10 text-base md:text-lg max-w-2xl mx-auto leading-relaxed"
+          style={{ color: '#00dd88' }}
         >
-          Transform into powerful aliens and survive
-        </motion.p>
+          Transform into powerful aliens and survive the endless challenges
+        </p>
 
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={isLoaded ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6, delay: 0.6 }}
-        >
+        <div className={`transition-all duration-700 ${isLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
           <Link
             href="/game/menu"
-            className="inline-block px-10 py-3 bg-gradient-to-r from-green-400 to-cyan hover:from-green-300 hover:to-cyan/80 text-dark-bg font-bold text-lg rounded-lg transition-all duration-300 neon-glow font-mono"
+            className="inline-block px-12 py-4 rounded-lg font-bold text-xl tracking-wide transition-all duration-300 hover:scale-105 active:scale-95"
+            style={{
+              backgroundColor: '#00ffaa',
+              color: '#0a1a2e',
+              boxShadow: '0 0 20px rgba(0, 255, 170, 0.5), 0 4px 12px rgba(0, 0, 0, 0.3)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.boxShadow = '0 0 30px rgba(0, 255, 170, 0.8), 0 4px 16px rgba(0, 0, 0, 0.4)'
+              e.currentTarget.style.backgroundColor = '#00ffcc'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.boxShadow = '0 0 20px rgba(0, 255, 170, 0.5), 0 4px 12px rgba(0, 0, 0, 0.3)'
+              e.currentTarget.style.backgroundColor = '#00ffaa'
+            }}
           >
             START GAME
           </Link>
-        </motion.div>
-
-        <motion.div
-          className="mt-12 flex justify-center gap-2"
-          initial={{ opacity: 0 }}
-          animate={isLoaded ? { opacity: 1 } : {}}
-          transition={{ duration: 0.6, delay: 0.7 }}
-        >
-          {[0, 1, 2].map((i) => (
-            <motion.div
-              key={i}
-              animate={{ y: [0, -10, 0] }}
-              transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.1 }}
-              className="w-2 h-2 bg-green-400 rounded-full"
-            />
-          ))}
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
     </div>
   )
 }
