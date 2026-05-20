@@ -16,9 +16,9 @@ const exo2 = Exo_2({
 })
 
 export const metadata: Metadata = {
-  title: "OMNIDEX - Alien DNA Database",
+  title: "BEN10 - Endless Runner Game",
   description:
-    "A futuristic Omnitrix database. Browse alien DNA samples, analyze performance metrics, and initiate transformation sequences.",
+    "Transform into powerful aliens and survive the endless runner. Choose your character, master the lanes, and beat high scores!",
   generator: "v0.app",
   icons: {
     icon: [
