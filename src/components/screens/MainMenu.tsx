@@ -28,116 +28,58 @@ export function MainMenu() {
 
   return (
     <div className="relative w-full h-screen bg-dark-bg overflow-hidden flex flex-col items-center justify-center p-4">
-      <div className="fixed inset-0 grid-bg pointer-events-none" />
+      <div className="fixed inset-0 grid-bg pointer-events-none opacity-30" />
 
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <motion.div
-          animate={{
-            opacity: [0.1, 0.3, 0.1],
-            scale: [1, 1.2, 1],
-          }}
-          transition={{ duration: 8, repeat: Infinity }}
-          className="absolute top-1/4 left-1/4 w-96 h-96 bg-green-500 rounded-full mix-blend-multiply filter blur-3xl"
-        />
-        <motion.div
-          animate={{
-            opacity: [0.1, 0.3, 0.1],
-            scale: [1, 1.2, 1],
-          }}
-          transition={{ duration: 8, repeat: Infinity, delay: 2 }}
-          className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500 rounded-full mix-blend-multiply filter blur-3xl"
-        />
+        <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-green-500 rounded-full mix-blend-multiply opacity-20 blur-2xl" />
+        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-cyan-500 rounded-full mix-blend-multiply opacity-20 blur-2xl" />
       </div>
 
       <motion.div
-        initial={{ opacity: 0, y: -40 }}
+        initial={{ opacity: 0, y: -30 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8 }}
+        transition={{ duration: 0.6 }}
         className="relative z-10 text-center"
       >
-        <motion.h1
-          className="text-6xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 via-cyan to-green-400 mb-4 tracking-widest font-mono"
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8, delay: 0.2 }}
-        >
+        <h1 className="text-6xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 via-cyan to-green-400 mb-4 tracking-widest font-mono">
           BEN10
-        </motion.h1>
+        </h1>
 
-        <motion.p
-          className="text-cyan text-sm md:text-base font-mono tracking-wider mb-12"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
-        >
+        <p className="text-cyan text-sm md:text-base font-mono tracking-wider mb-10">
           ENDLESS RUNNER
-        </motion.p>
+        </p>
 
-        <motion.div
-          className="space-y-3 mb-12 max-w-sm mx-auto"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 0.6 }}
-        >
+        <div className="space-y-3 mb-10 max-w-sm mx-auto">
           {menuItems.map((item, index) => {
             const Icon = item.icon
             return (
               <motion.div
                 key={item.href}
-                initial={{ opacity: 0, x: -20 }}
+                initial={{ opacity: 0, x: -15 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.7 + index * 0.1 }}
+                transition={{ duration: 0.5, delay: 0.15 + index * 0.08 }}
               >
                 <Link
                   href={item.href}
                   className={`
-                    block px-8 py-4 bg-gradient-to-r ${item.className}
-                    text-dark-bg font-bold font-mono text-lg rounded-lg
-                    transition-all duration-300 group
-                    hover:neon-glow-strong neon-glow
-                    ripple-button
+                    block px-6 py-3 bg-gradient-to-r ${item.className}
+                    text-dark-bg font-bold font-mono text-base rounded-lg
+                    transition-all duration-300
                   `}
                 >
-                  <span className="flex items-center justify-center gap-3">
-                    <Icon size={20} className="group-hover:scale-125 transition-transform" />
+                  <span className="flex items-center justify-center gap-2">
+                    <Icon size={18} />
                     {item.label}
                   </span>
                 </Link>
               </motion.div>
             )
           })}
-        </motion.div>
+        </div>
 
-        <motion.p
-          className="text-muted-foreground font-mono text-xs md:text-sm"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 1 }}
-        >
-          Select your alien form and survive the endless run
-        </motion.p>
-
-        <motion.div
-          className="mt-8 flex justify-center gap-1"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 1.1 }}
-        >
-          {[0, 1, 2, 4, 5].map((i) => (
-            <motion.div
-              key={i}
-              animate={{
-                height: ['4px', '20px', '4px'],
-              }}
-              transition={{
-                duration: 0.8,
-                repeat: Infinity,
-                delay: i * 0.1,
-              }}
-              className="w-1 bg-gradient-to-t from-green-400 to-cyan rounded-full"
-            />
-          ))}
-        </motion.div>
+        <p className="text-muted-foreground font-mono text-xs md:text-sm">
+          Select your alien and survive
+        </p>
       </motion.div>
     </div>
   )

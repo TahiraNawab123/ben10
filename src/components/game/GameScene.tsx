@@ -78,7 +78,7 @@ function Terrain({ worldType }: { worldType: string }) {
   }, [worldType])
 
   return (
-    <mesh ref={meshRef} geometry={geometry} position={[0, 0, 0]} receiveShadow>
+    <mesh ref={meshRef} geometry={geometry as any} position={[0, 0, 0]} receiveShadow>
       <meshStandardMaterial
         color={colors.ground[0]}
         roughness={worldType === 'ice' ? 0.2 : 0.9}
