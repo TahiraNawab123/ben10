@@ -1,19 +1,16 @@
 'use client'
 
-import { useState, memo } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronRight, ArrowLeft } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { ChevronRight, ChevronLeft } from 'lucide-react'
+import Link from 'next/link'
 import { CHARACTERS } from '@/src/data/characters'
 import { gameStore } from '@/src/store/gameStore'
 import { CharacterCard } from '@/src/components/cards/CharacterCard'
 
-interface CharacterSelectorProps {
-  onSelect?: (characterId: string) => void
-}
-
-export function CharacterSelector({ onSelect }: CharacterSelectorProps) {
-  const [selectedCharacterId, setSelectedCharacterId] = useState<string>('')
+export function CharacterSelector() {
+  const [selectedCharacterId, setSelectedCharacterId] = useState<string>(CHARACTERS[0].id)
+  const [scrollPosition, setScrollPosition] = useState(0)
   const router = useRouter()
 
   const selectedCharacter = CHARACTERS.find((c) => c.id === selectedCharacterId)
@@ -27,106 +24,178 @@ export function CharacterSelector({ onSelect }: CharacterSelectorProps) {
   }
 
   const handleContinue = () => {
-    if (selectedCharacterId && selectedCharacter) {
-      onSelect?.(selectedCharacterId)
-      router.push('/game/select-theme')
-    }
+    router.push('/game/select-theme')
   }
 
   return (
-    <div className="min-h-screen bg-dark-bg overflow-x-hidden">
-      <div className="fixed inset-0 grid-bg pointer-events-none opacity-30" />
+    <div className="min-h-screen flex flex-col" style={{
+      background: 'linear-gradient(135deg, #0a1a2e 0%, #16213e 30%, #0f4d3e 70%, #0a1a2e 100%)'
+    }}>
+      {/* Header */}
+      <header className="border-b" style={{ 
+        borderColor: 'rgba(0, 255, 102, 0.2)',
+        backgroundColor: 'rgba(10, 20, 35, 0.8)',
+        backdropFilter: 'blur(10px)'
+      }}>
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <Link href="/game/menu" className="flex items-center gap-2 text-green-400 hover:text-cyan transition-colors">
+            <span style={{ fontSize: '18px', fontWeight: 'bold', letterSpacing: '2px' }}>⬅ BEN10</span>
+          </Link>
+          
+          <nav className="flex items-center gap-8">
+            <a href="#" className="text-gray-400 hover:text-green-400 transition-colors text-sm tracking-wide">DATABASE</a>
+            <a href="#" className="text-gray-400 hover:text-green-400 transition-colors text-sm tracking-wide">STATS</a>
+          </nav>
 
-      <div className="relative max-w-7xl mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-12">
-          <button
-            onClick={() => router.back()}
-            className="inline-flex items-center gap-2 text-muted-foreground hover:text-green-400 transition-colors duration-200"
-          >
-            <ArrowLeft size={20} />
-            <span className="font-mono text-sm">Back</span>
-          </button>
-          <h1 className="gradient-text text-3xl md:text-4xl font-bold font-mono">
-            SELECT ALIEN
+          <div className="flex items-center gap-2 px-3 py-1 rounded border" style={{
+            borderColor: '#00ff66',
+            color: '#00ff66'
+          }}>
+            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+            <span className="text-xs font-mono font-bold tracking-widest">READY</span>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
+        <div className="text-center mb-12">
+          <div className="mb-4 inline-block px-4 py-1 rounded border" style={{
+            borderColor: 'rgba(0, 255, 102, 0.5)',
+            color: '#00ff66'
+          }}>
+            <span className="text-xs font-mono tracking-widest font-bold">SYSTEM ACTIVE</span>
+          </div>
+
+          <h1 className="text-5xl md:text-7xl font-black tracking-wider mb-2" style={{
+            color: '#ffffff',
+            textShadow: '0 0 30px rgba(255, 255, 255, 0.3)'
+          }}>
+            SELECT YOUR <span style={{ color: '#00ff66' }}>ALIEN</span>
           </h1>
-          <div className="w-12" />
+
+          <p className="text-gray-400 text-base md:text-lg max-w-2xl mx-auto mt-4 tracking-wide">
+            Browse the alien database to initialize transformation sequence
+          </p>
         </div>
 
-        <p className="text-muted-foreground text-center mb-10 font-mono text-xs md:text-sm">
-          Choose your transformation
-        </p>
-
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-10">
-          {CHARACTERS.map((character) => (
-            <CharacterCard
-              key={character.id}
-              character={character}
-              isSelected={selectedCharacterId === character.id}
-              onClick={() => handleSelectCharacter(character.id)}
-            />
-          ))}
+        {/* Character Grid */}
+        <div className="max-w-7xl w-full mb-12">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {CHARACTERS.map((character) => (
+              <div
+                key={character.id}
+                onClick={() => handleSelectCharacter(character.id)}
+                className="relative cursor-pointer"
+              >
+                <CharacterCard
+                  character={character}
+                  isSelected={selectedCharacterId === character.id}
+                  onClick={() => handleSelectCharacter(character.id)}
+                />
+              </div>
+            ))}
+          </div>
         </div>
 
+        {/* Selected Character Details */}
         {selectedCharacter && (
-          <div className="pt-8 border-t border-muted">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+          <div className="max-w-7xl w-full mt-8 pt-8 border-t" style={{
+            borderColor: 'rgba(0, 255, 102, 0.2)'
+          }}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div>
-                <h2 className="gradient-text text-2xl md:text-3xl font-bold font-mono mb-3">
+                <h2 className="text-3xl md:text-4xl font-black mb-4" style={{
+                  color: '#00ff66',
+                  textShadow: '0 0 20px rgba(0, 255, 102, 0.5)'
+                }}>
                   {selectedCharacter.name}
                 </h2>
-                <p className="text-foreground text-sm mb-4">
+
+                <p className="text-gray-300 text-base md:text-lg mb-6 leading-relaxed">
                   {selectedCharacter.description}
                 </p>
 
-                <div className="p-3 bg-muted/30 rounded-lg border border-muted text-sm">
-                  <p className="text-cyan text-xs font-mono font-semibold mb-1">
-                    ABILITY: {selectedCharacter.ability.name}
-                  </p>
-                  <p className="text-muted-foreground text-xs mb-2">
-                    {selectedCharacter.ability.description}
-                  </p>
-                  <div className="flex gap-4 font-mono text-xs">
-                    <span>Duration: <span className="text-green-400">{selectedCharacter.ability.duration}s</span></span>
-                    <span>Cooldown: <span className="text-green-400">{selectedCharacter.ability.cooldown}s</span></span>
+                <div className="bg-dark-bg/40 backdrop-blur p-4 rounded border" style={{
+                  borderColor: 'rgba(0, 212, 255, 0.3)'
+                }}>
+                  <p className="text-cyan text-xs font-mono font-bold tracking-widest mb-2">PRIMARY ABILITY</p>
+                  <h3 className="text-xl font-bold text-green-400 mb-2">{selectedCharacter.ability.name}</h3>
+                  <p className="text-gray-400 text-sm mb-4">{selectedCharacter.ability.description}</p>
+                  
+                  <div className="grid grid-cols-2 gap-4 text-xs font-mono">
+                    <div>
+                      <p className="text-gray-500">DURATION</p>
+                      <p className="text-green-400 font-bold">{selectedCharacter.ability.duration}s</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">COOLDOWN</p>
+                      <p className="text-green-400 font-bold">{selectedCharacter.ability.cooldown}s</p>
+                    </div>
                   </div>
                 </div>
               </div>
 
               <div className="flex flex-col justify-between">
-                <div className="space-y-3">
-                  <h3 className="text-sm font-mono font-bold text-green-400">STATS</h3>
-                  <StatLine label="Strength" value={selectedCharacter.stats.strength} />
-                  <StatLine label="Velocity" value={selectedCharacter.stats.velocity} />
-                  <StatLine label="Intellect" value={selectedCharacter.stats.intellect} />
+                <div className="bg-dark-bg/40 backdrop-blur p-6 rounded border" style={{
+                  borderColor: 'rgba(0, 255, 102, 0.3)'
+                }}>
+                  <h3 className="text-lg font-bold text-green-400 mb-6 tracking-widest">STATS</h3>
+                  
+                  <div className="space-y-4">
+                    <StatBar label="Strength" value={selectedCharacter.stats.strength} />
+                    <StatBar label="Velocity" value={selectedCharacter.stats.velocity} />
+                    <StatBar label="Intellect" value={selectedCharacter.stats.intellect} />
+                  </div>
                 </div>
 
                 <button
                   onClick={handleContinue}
-                  className="w-full px-6 py-3 bg-gradient-to-r from-green-400 to-cyan hover:from-green-300 hover:to-cyan/80 text-dark-bg font-bold font-mono text-sm rounded-lg transition-all duration-300 flex items-center justify-center gap-2 neon-glow mt-6"
+                  className="mt-6 px-8 py-4 font-bold text-lg tracking-widest rounded flex items-center justify-center gap-3 transition-all duration-300 hover:scale-105 active:scale-95"
+                  style={{
+                    background: 'linear-gradient(135deg, #00ff66 0%, #00ffaa 100%)',
+                    color: '#0a1a2e',
+                    boxShadow: '0 0 20px rgba(0, 255, 102, 0.4)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.boxShadow = '0 0 30px rgba(0, 255, 102, 0.7)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.boxShadow = '0 0 20px rgba(0, 255, 102, 0.4)'
+                  }}
                 >
-                  <span>Continue</span>
-                  <ChevronRight size={18} />
+                  <span>CONTINUE</span>
+                  <ChevronRight size={20} />
                 </button>
               </div>
             </div>
           </div>
         )}
+
+        {/* Footer Text */}
+        <div className="text-center mt-12 text-gray-500">
+          <p className="text-xs font-mono tracking-widest">CLICK TO SELECT • SCROLL TO BROWSE</p>
+        </div>
       </div>
     </div>
   )
 }
 
-function StatLine({ label, value }: { label: string; value: number }) {
+function StatBar({ label, value }: { label: string; value: number }) {
   return (
     <div>
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-muted-foreground font-mono text-xs">{label}</span>
-        <span className="text-green-400 font-mono text-xs">{value}/10</span>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-gray-400 text-sm font-mono">{label}</span>
+        <span className="text-green-400 font-mono font-bold text-sm">{value}/10</span>
       </div>
-      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+      <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(0, 255, 102, 0.1)' }}>
         <div
-          className="h-full bg-gradient-to-r from-green-400 to-cyan"
-          style={{ width: `${(value / 10) * 100}%` }}
+          className="h-full transition-all duration-700"
+          style={{
+            width: `${(value / 10) * 100}%`,
+            background: 'linear-gradient(90deg, #00ff66 0%, #00ffaa 100%)',
+            boxShadow: '0 0 10px rgba(0, 255, 102, 0.5)'
+          }}
         />
       </div>
     </div>

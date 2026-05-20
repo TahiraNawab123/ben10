@@ -14,15 +14,6 @@ export default function PlayPage() {
     useGame()
 
   useEffect(() => {
-    const state = gameStore.getState()
-    if (!state.isGameActive && !state.character) {
-      window.location.href = '/game/menu'
-    } else if (!state.character) {
-      window.location.href = '/game/select-character'
-    }
-  }, [])
-
-  useEffect(() => {
     if (gameState.health <= 0) {
       endGame()
     }
@@ -46,10 +37,6 @@ export default function PlayPage() {
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
   }, [handleLaneChange, togglePause, activateAbility])
-
-  if (!gameState.character) {
-    return null
-  }
 
   return (
     <div className="w-full h-screen relative overflow-hidden bg-slate-900">
