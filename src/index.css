@@ -1,0 +1,42 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Roboto+Mono:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Orbitron", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Roboto Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer utilities {
+  .text-glow-green {
+    text-shadow: 0 0 10px rgba(0, 255, 0, 0.6), 0 0 20px rgba(0, 255, 0, 0.3);
+  }
+  .text-glow-cyan {
+    text-shadow: 0 0 10px rgba(0, 240, 255, 0.45), 0 0 20px rgba(0, 240, 255, 0.2);
+  }
+  .omnitrix-glow {
+    box-shadow: 0 0 30px rgba(0, 255, 0, 0.35), inset 0 0 15px rgba(0, 255, 0, 0.15);
+  }
+  .hologram-effect {
+    background: linear-gradient(180deg, rgba(0, 255, 0, 0.08) 0%, rgba(0, 255, 0, 0.02) 100%);
+    border: 1px solid rgba(0, 255, 0, 0.25);
+    backdrop-filter: blur(4px);
+  }
+  .scan-line {
+    background: linear-gradient(to bottom, transparent, rgba(0, 255, 0, 0.2), transparent);
+    height: 10px;
+    width: 100%;
+    position: absolute;
+    top: -10px;
+    animation: scan 4s linear infinite;
+  }
+  .dna-grid {
+    background-image: radial-gradient(circle, #0e1a0e 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+}
+
+@keyframes scan {
+  0% { top: -10px; }
+  100% { top: 100%; }
+}
+
