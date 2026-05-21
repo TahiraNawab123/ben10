@@ -41,10 +41,6 @@ export const OmnitrixSelector: React.FC<Props> = ({ onSelect, muted, toggleMuted
       case 'xlr8': return <Zap className="w-4 h-4 text-cyan-500 mr-2" />;
       case 'diamondhead': return <Shield className="w-4 h-4 text-emerald-500 mr-2" />;
       case 'fourarms': return <Move className="w-4 h-4 text-red-500 mr-2" />;
-      case 'cannonbolt': return <AlertOctagon className="w-4 h-4 text-yellow-500 mr-2" />;
-      case 'ghostfreak': return <Shield className="w-4 h-4 text-purple-500 mr-2" />;
-      case 'ripjaws': return <Zap className="w-4 h-4 text-blue-500 mr-2" />;
-      case 'wildmutt': return <Move className="w-4 h-4 text-orange-500 mr-2" />;
       default: return <Zap className="w-4 h-4 text-green-500 mr-2" />;
     }
   };
@@ -124,16 +120,16 @@ export const OmnitrixSelector: React.FC<Props> = ({ onSelect, muted, toggleMuted
  
             {/* Active Holographic Avatar Projecting Over the Hourglass */}
             <div className="absolute inset-0 flex items-center justify-center p-3">
-              <AnimatePresence mode="wait">
+              <AnimatePresence mode="popLayout">
                 <motion.div
                   key={currentAlien.id}
-                  initial={{ opacity: 0, scale: 0.5, rotate: -45 }}
-                  animate={{ opacity: 1, scale: 0.95, rotate: 0 }}
-                  exit={{ opacity: 0, scale: 0.5, rotate: 45 }}
-                  transition={{ duration: 0.28, ease: 'easeOut' }}
+                  initial={{ opacity: 0, scale: 0.82 }}
+                  animate={{ opacity: 1, scale: 0.95 }}
+                  exit={{ opacity: 0, scale: 0.82 }}
+                  transition={{ duration: 0.1, ease: 'easeOut' }}
                   className="w-full h-full flex items-center justify-center"
                 >
-                  <AlienAvatar id={currentAlien.id} imageUrl={currentAlien.image} className="w-32 h-32" />
+                  <AlienAvatar id={currentAlien.id} className="w-32 h-32" />
                 </motion.div>
               </AnimatePresence>
             </div>
