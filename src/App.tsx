@@ -12,12 +12,23 @@ export default function App() {
   const [selectedAlien, setSelectedAlien] = useState<Alien>(ALIENS[0]);
   const [muted, setMuted] = useState(false);
 
-  // Sync mute state on startup and save as preference
+  // Sync mute state on startup and save as preference, plus preload all alien pictures
   useEffect(() => {
     const savedMute = localStorage.getItem('ben10_game_muted');
     if (savedMute === 'true') {
       setMuted(true);
       sfx.setMute(true);
+    }
+
+    // Proactively preload alien creature pictures for instant rendering
+    if (typeof window !== 'undefined') {
+      const cache = (window as any)._ben10ImageCache || {};
+      ALIENS.forEach((alien) => {
+        const img = new Image();
+        img.src = `/creatures/${alien.id}.jpg`;
+        cache[alien.id] = img;
+      });
+      (window as any)._ben10ImageCache = cache;
     }
   }, []);
 

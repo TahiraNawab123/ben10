@@ -74,6 +74,17 @@ export const GameRunner: React.FC<Props> = ({ selectedAlien, onExit, muted, togg
   const abilityCooldownRef = useRef<number>(0);
   const tempInvincibleRef = useRef<number>(0);
 
+  // Preload and cache all alien images inside GameRunner for instant rendering
+  const alienImagesRef = useRef<Record<string, HTMLImageElement>>({});
+
+  useEffect(() => {
+    ALIENS.forEach((alien) => {
+      const img = new Image();
+      img.src = `/creatures/${alien.id}.jpg`;
+      alienImagesRef.current[alien.id] = img;
+    });
+  }, []);
+
   // Swipe controls tracking
   const touchStartRef = useRef<{ x: number, y: number } | null>(null);
 
@@ -97,36 +108,27 @@ export const GameRunner: React.FC<Props> = ({ selectedAlien, onExit, muted, togg
     abilityCooldownRef.current = 14; // cooldown frames
     const id = selectedAlien.id;
 
-    if (id === 'alien_x') {
-      playSfx('transform');
-      screenShakeRef.current = 28;
-      transformFlashRef.current = 15;
-
-      let count = 0;
-      obstaclesRef.current.forEach(obs => {
-        if (obs.z > 35 && obs.type !== 'energyCore' && obs.type !== 'shield' && obs.type !== 'magnet') {
-          obs.collected = true;
-          count++;
-          for (let k = 0; k < 6; k++) {
-            particlesRef.current.push({
-              x: (obs.lane - 1) * 110 + (Math.random() - 0.5) * 40,
-              y: (Math.random() - 0.5) * 30 + 15,
-              vx: (Math.random() - 0.5) * 6,
-              vy: Math.random() * 5 + 1,
-              color: '#FFFFFF',
-              size: Math.random() * 4 + 2,
-              alpha: 1
-            });
-          }
-        }
-      });
-
-      if (count > 0) {
-        setPlayer(prev => ({ ...prev, score: prev.score + count * 150 }));
-        createTextPopup(`REALITY EXTINGUISH! +${count * 150}`, 1, 40, '#00FF00');
-      } else {
-        createTextPopup("COSMIC SENSE Active", 1, 40, '#FFFFFF');
-      }
+    if (id === 'cannonbolt') {
+      playSfx('crash');
+      screenShakeRef.current = 20;
+      tempInvincibleRef.current = 100; // invincible spherical roll for ~1.6 seconds
+      createTextPopup("CANNONBALL ROLLING! 🛡️⚡", playerRef.current.lane, 25, '#E6C300');
+      createParticles(playerRef.current.lane, 15, '#E6C300', 18);
+    } else if (id === 'ghostfreak') {
+      playSfx('jump');
+      tempInvincibleRef.current = 140; // intangible translucent state for ~2.3 seconds
+      createTextPopup("PHANTOM SHADOW DRIFT! 👻", playerRef.current.lane, 25, '#8E44AD');
+      createParticles(playerRef.current.lane, 15, '#8E44AD', 15);
+    } else if (id === 'wildmutt') {
+      playSfx('powerup');
+      // Trigger instant magnet pull for items
+      setPlayer(prev => ({
+        ...prev,
+        magnetActive: true,
+        magnetTimer: 450 // 7.5 seconds of super-pulling magnet
+      }));
+      createTextPopup("RADAR OVERDRIVE SECTOR! 📡🐕", playerRef.current.lane, 25, '#FF8C00');
+      createParticles(playerRef.current.lane, 15, '#FF8C00', 16);
     } else if (id === 'xlr8') {
       playSfx('jump');
       tempInvincibleRef.current = 90; // 1.5 seconds hyper-dash
@@ -155,22 +157,17 @@ export const GameRunner: React.FC<Props> = ({ selectedAlien, onExit, muted, togg
           }
         }
       });
-    } else if (id === 'rath') {
-      playSfx('jump');
-      tempInvincibleRef.current = 65; // 1 second tiger claws dash
-      createTextPopup("SHRED REIGN!", playerRef.current.lane, 35, '#E65C00');
-      createParticles(playerRef.current.lane, 15, '#E65C00', 16);
     } else {
       // Create and project custom bullet projectiles
       playSfx('click');
-      let type: 'fireball' | 'crystal' | 'plasma' | 'slime' | 'acid' | 'lightning' = 'plasma';
+      let type: 'fireball' | 'crystal' | 'plasma' | 'slime' | 'acid' | 'lightning' | 'shockwave' = 'plasma';
       let color = '#32CD32';
 
       if (id === 'heatblast') { type = 'fireball'; color = '#FF4D00'; }
       else if (id === 'diamondhead') { type = 'crystal'; color = '#00FFA3'; }
       else if (id === 'stinkfly') { type = 'slime'; color = '#EEFF41'; }
-      else if (id === 'goop') { type = 'acid'; color = '#00FF64'; }
-      else if (id === 'ampfibian') { type = 'lightning'; color = '#00D1FF'; }
+      else if (id === 'ripjaws') { type = 'lightning'; color = '#17A2B8'; }
+      else if (id === 'upgrade') { type = 'plasma'; color = '#32CD32'; }
 
       playerProjectilesRef.current.push({
         id: Math.random().toString(),
@@ -320,42 +317,177 @@ export const GameRunner: React.FC<Props> = ({ selectedAlien, onExit, muted, togg
 
     // Power-ups spawn rates
     const spawnObstacle = () => {
-      const typeRand = Math.random();
-      let type: Obstacle['type'] = 'barricade';
+      const spawnedItems: Obstacle[] = [];
+      const patternChoice = Math.random();
 
-      if (typeRand < 0.38) {
-        type = Math.random() < 0.5 ? 'barrier' : 'barricade';
-      } else if (typeRand < 0.50) {
-        type = 'beam'; // requires slide
-      } else if (typeRand < 0.68) {
-        // Spawning oncoming enemies
-        type = Math.random() < 0.65 ? 'enemy_drone' : 'enemy_soldier';
-      } else if (typeRand < 0.82) {
-        type = 'energyCore'; // green capsule loading Omnitrix
-      } else {
-        type = Math.random() < 0.5 ? 'magnet' : 'shield';
-      }
-
-      // Generate in custom randomly selected lane
-      const lane = Math.floor(Math.random() * 3);
-
-      const isEnemy = type === 'enemy_drone' || type === 'enemy_soldier';
-      const enemyHealth = type === 'enemy_drone' ? 1 : 2;
-
-      const newObstacle: Obstacle = {
-        id: Math.random().toString(),
-        lane,
-        z: MAX_WORLD_Z,
-        type,
-        width: type === 'energyCore' || type === 'magnet' || type === 'shield' ? 24 : (type === 'enemy_soldier' ? 45 : (type === 'enemy_drone' ? 38 : 50)),
-        height: type === 'beam' ? 45 : (type === 'barrier' ? 24 : (type === 'enemy_soldier' ? 55 : (type === 'enemy_drone' ? 38 : 55))),
-        collected: false,
-        health: isEnemy ? enemyHealth : undefined,
-        driftTimer: isEnemy ? Math.floor(Math.random() * 60) : undefined,
-        driftDir: isEnemy ? (Math.random() < 0.5 ? -1 : 1) : undefined
+      // Proportional dimensions mapper helper
+      const getWidthAndHeight = (t: Obstacle['type']) => {
+        const width = t === 'train' ? 62 : (t === 'energyCore' || t === 'magnet' || t === 'shield' ? 24 : (t === 'enemy_soldier' ? 45 : (t === 'enemy_drone' ? 38 : 52)));
+        const height = t === 'train' ? 78 : (t === 'beam' ? 45 : (t === 'barrier' ? 24 : (t === 'enemy_soldier' ? 55 : (t === 'enemy_drone' ? 38 : 55))));
+        return { width, height };
       };
 
-      setObstacles(prev => [...prev, newObstacle]);
+      if (patternChoice < 0.28) {
+        // --- PATTERN 1: STAGGERED SERPENTINE OBSTACLES (Subway Surfers Zigzag) ---
+        // Places barriers and enemies at different depths in all 3 lanes, forcing visual lane changing!
+        const lanesOrder = [0, 1, 2].sort(() => Math.random() - 0.5);
+        
+        lanesOrder.forEach((lane, stepIdx) => {
+          // Determine staggered type per lane
+          const stepZ = MAX_WORLD_Z + stepIdx * 130;
+          let randomType: Obstacle['type'] = 'barricade';
+          const r = Math.random();
+          if (r < 0.35) {
+            randomType = 'barrier'; // low jumpable segment
+          } else if (r < 0.65) {
+            randomType = 'beam'; // high slidable segment
+          } else {
+            randomType = 'enemy_drone'; // shootable enemy
+          }
+
+          const { width: w, height: h } = getWidthAndHeight(randomType);
+          spawnedItems.push({
+            id: Math.random().toString(),
+            lane,
+            z: stepZ,
+            type: randomType,
+            width: w,
+            height: h,
+            collected: false,
+            health: randomType === 'enemy_drone' ? 1 : undefined
+          });
+
+          // Scatter encouraging green energy cores guiding the path between hurdles!
+          const coinLane = (lane + 1) % 3;
+          spawnedItems.push({
+            id: Math.random().toString(),
+            lane: coinLane,
+            z: stepZ - 60,
+            type: 'energyCore',
+            width: 24,
+            height: 24,
+            collected: false
+          });
+        });
+      }
+      else if (patternChoice < 0.54) {
+        // --- PATTERN 2: THE DOUBLE BARRICADE ESCAPE WALL ---
+        // Blocks two lanes entirely with tall barricades, highlighting one open lane with a string of items!
+        const escapeLane = Math.floor(Math.random() * 3);
+        const blockedLanes = [0, 1, 2].filter(l => l !== escapeLane);
+
+        blockedLanes.forEach(lane => {
+          const typeChoice = Math.random() < 0.35 ? 'train' : 'barricade';
+          const { width: w, height: h } = getWidthAndHeight(typeChoice);
+          spawnedItems.push({
+            id: Math.random().toString(),
+            lane,
+            z: MAX_WORLD_Z,
+            type: typeChoice,
+            width: w,
+            height: h,
+            collected: false
+          });
+        });
+
+        // Spawn gold rush energy core trail in the open escape lane!
+        const isLuckyPowerup = Math.random() < 0.35;
+        const powerupType: Obstacle['type'] = Math.random() < 0.5 ? 'magnet' : 'shield';
+        
+        for (let step = 0; step < 4; step++) {
+          spawnedItems.push({
+            id: Math.random().toString(),
+            lane: escapeLane,
+            z: MAX_WORLD_Z + step * 35,
+            type: (step === 1 && isLuckyPowerup) ? powerupType : 'energyCore',
+            width: 24,
+            height: 24,
+            collected: false
+          });
+        }
+      }
+      else if (patternChoice < 0.78) {
+        // --- PATTERN 3: THREE-LANE JUMP/SLIDE REFLEX CHALLENGES ---
+        // Spawns low barriers across all lanes, or slide-under beams across all, or a mix of both!
+        const isSlideChallenge = Math.random() < 0.5;
+        const uniformType: Obstacle['type'] = isSlideChallenge ? 'beam' : 'barrier';
+        const { width: w, height: h } = getWidthAndHeight(uniformType);
+
+        for (let lane = 0; lane < 3; lane++) {
+          // Block all three tracks with jumpable/slidable elements
+          spawnedItems.push({
+            id: Math.random().toString(),
+            lane,
+            z: MAX_WORLD_Z,
+            type: uniformType,
+            width: w,
+            height: h,
+            collected: false
+          });
+        }
+
+        // Floating floating coins overhead!
+        for (let step = 0; step < 3; step++) {
+          spawnedItems.push({
+            id: Math.random().toString(),
+            lane: 1, // center lane
+            z: MAX_WORLD_Z + 70 + step * 30,
+            type: 'energyCore',
+            width: 24,
+            height: 24,
+            collected: false
+          });
+        }
+      }
+      else {
+        // --- PATTERN 4: HEAVY LOCOMOTIVE LOOMING TRAIN CHASE ---
+        // Spawns a major oncoming train rushing in one lane, and splits the other two into combat drones!
+        const trainLane = Math.floor(Math.random() * 3);
+        const { width: tw, height: th } = getWidthAndHeight('train');
+
+        // Oncoming heavy train locomotive
+        spawnedItems.push({
+          id: Math.random().toString(),
+          lane: trainLane,
+          z: MAX_WORLD_Z,
+          type: 'train',
+          width: tw,
+          height: th,
+          collected: false
+        });
+
+        // Spawn a tactical infantry combat robot or hover drone in the other lanes
+        const otherLanes = [0, 1, 2].filter(l => l !== trainLane);
+        otherLanes.forEach((lane, idx) => {
+          const typeChoice = idx === 0 ? 'enemy_drone' : 'enemy_soldier';
+          const { width: ew, height: eh } = getWidthAndHeight(typeChoice);
+          spawnedItems.push({
+            id: Math.random().toString(),
+            lane,
+            z: MAX_WORLD_Z + 60,
+            type: typeChoice,
+            width: ew,
+            height: eh,
+            collected: false,
+            health: typeChoice === 'enemy_drone' ? 1 : 2
+          });
+        });
+
+        // Power-up placement
+        const powerupLane = otherLanes[Math.floor(Math.random() * otherLanes.length)];
+        const powerupType: Obstacle['type'] = Math.random() < 0.5 ? 'magnet' : 'shield';
+        spawnedItems.push({
+          id: Math.random().toString(),
+          lane: powerupLane,
+          z: MAX_WORLD_Z + 140,
+          type: powerupType,
+          width: 24,
+          height: 24,
+          collected: false
+        });
+      }
+
+      setObstacles(prev => [...prev, ...spawnedItems]);
     };
 
     const loop = () => {
@@ -496,6 +628,8 @@ export const GameRunner: React.FC<Props> = ({ selectedAlien, onExit, muted, togg
         // Handle projectile laser speed ratios
         if (obs.type === 'enemy_laser') {
           obs.z -= trackSpeedRef.current * 1.5; // moves exceptionally fast!
+        } else if (obs.type === 'train') {
+          obs.z -= trackSpeedRef.current * 1.45; // rushing train!
         } else {
           obs.z -= trackSpeedRef.current;
         }
@@ -598,15 +732,21 @@ export const GameRunner: React.FC<Props> = ({ selectedAlien, onExit, muted, togg
               } else if (!didEvade && obs.type === 'barrier' && p.isJumping) {
                 // Dodged barrier successfully by jumping
                 didEvade = true;
+              } else if (!didEvade && obs.type === 'train' && p.isJumping && p.y >= 30) {
+                // Landed cleanly and runs on top of the train roof!
+                didEvade = true;
+                p.score += 75;
+                createTextPopup("TRAIN SURFING! 🚈🏄", p.lane, p.y, '#00FFA3');
+                createParticles(p.lane, p.y, '#00FFA3', 10);
               }
 
-              // Special alien evasions
-              // 1. Goop slips under lasers with ease
-              if (!didEvade && selectedAlien.id === 'goop' && obs.type === 'beam') {
-                didEvade = true;
-                createTextPopup("ACID SLIP!", p.lane, p.y, '#00FF64');
-                createParticles(p.lane, p.y, '#00FF64', 8);
-              }
+               // Special alien evasions
+               // 1. Ghostfreak phases through high laser beams with ease
+               if (!didEvade && selectedAlien.id === 'ghostfreak' && obs.type === 'beam') {
+                 didEvade = true;
+                 createTextPopup("PHASE SHIFT!", p.lane, p.y, '#8E44AD');
+                 createParticles(p.lane, p.y, '#8E44AD', 8);
+               }
 
               // 2. Heatblast incinerates barriers automatically
               if (!didEvade && selectedAlien.id === 'heatblast' && obs.type === 'barrier') {
@@ -743,30 +883,265 @@ export const GameRunner: React.FC<Props> = ({ selectedAlien, onExit, muted, togg
       ctx.stroke();
       ctx.shadowBlur = 0; // reset
 
-      // Draw horizontal rail track sleepers (ties) moving down the perspective
-      ctx.strokeStyle = '#2d332f';
-      ctx.lineWidth = 2.5;
+      // Draw 3D Immersive Environmental Side Scenery (Buildings, Neon Billboards, Electric Rails, and Cactus-like Alien Palms)
       
+      // Draw distant parralax cityscape on the horizon first to create enormous visual depth!
+      ctx.save();
+      const cityParallaxOffset = (playerRef.current.distance * 0.28) % (width + 200);
+      for (let b = 0; b < 10; b++) {
+        const bHeight = 35 + (Math.sin(b * 123.4) * 0.5 + 0.5) * 65;
+        const bWidth = 55 + (Math.cos(b * 456.7) * 0.5 + 0.5) * 45;
+        const bX = (b * (width / 8)) - cityParallaxOffset;
+        const finalX = bX < -150 ? bX + width + 300 : bX;
+
+        // Draw dark steel corporate building silhouette
+        ctx.fillStyle = '#060B08';
+        ctx.strokeStyle = 'rgba(0, 255, 0, 0.08)';
+        ctx.lineWidth = 1;
+        ctx.fillRect(finalX, centerY - bHeight, bWidth, bHeight);
+        ctx.strokeRect(finalX, centerY - bHeight, bWidth, bHeight);
+
+        // Render microscopic glowing sci-fi office windows
+        ctx.fillStyle = b % 2 === 0 ? 'rgba(0, 255, 163, 0.45)' : 'rgba(255, 215, 0, 0.35)';
+        for (let wx = finalX + 4; wx < finalX + bWidth - 4; wx += 10) {
+          for (let wy = centerY - bHeight + 6; wy < centerY - 4; wy += 10) {
+            // Pseudo-random window state stable over frames
+            const winOn = Math.sin(wx * 22.45 + wy * 12.18) > -0.15;
+            if (winOn) {
+              ctx.fillRect(wx, wy, 1.8, 1.8);
+            }
+          }
+        }
+      }
+      ctx.restore();
+
+      const sceneryCount = 18;
+      for (let i = 0; i < sceneryCount; i++) {
+        const stepZ = ((i * (maxZ / sceneryCount)) - trackOffsetRef.current + maxZ) % maxZ;
+        if (stepZ < 15) continue;
+
+        // Draw left side scenery at x = -290
+        const pL_ground = projectPoint(-290, 0, stepZ);
+        const pL_top = projectPoint(-290, 110, stepZ); // 110 world units high
+
+        const pylonWidth = 10 * pL_ground.scale;
+
+        // Draw side industrial power towers with wire hooks
+        ctx.fillStyle = '#111518';
+        ctx.strokeStyle = '#2C3539';
+        ctx.lineWidth = 1.2 * pL_ground.scale;
+        ctx.beginPath();
+        ctx.moveTo(pL_ground.x - pylonWidth/2, pL_ground.y);
+        ctx.lineTo(pL_top.x - pylonWidth/4, pL_top.y);
+        ctx.lineTo(pL_top.x + pylonWidth/4, pL_top.y);
+        ctx.lineTo(pL_ground.x + pylonWidth/2, pL_ground.y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Tower horizontal cross bar hooks for electricity lines
+        ctx.fillRect(pL_top.x - pylonWidth * 1.5, pL_top.y + 12 * pL_ground.scale, pylonWidth * 3, 3 * pL_ground.scale);
+        ctx.strokeRect(pL_top.x - pylonWidth * 1.5, pL_top.y + 12 * pL_ground.scale, pylonWidth * 3, 3 * pL_ground.scale);
+
+        // Draw right side scenery at x = 290
+        const pR_ground = projectPoint(290, 0, stepZ);
+        const pR_top = projectPoint(290, 110, stepZ);
+        ctx.beginPath();
+        ctx.moveTo(pR_ground.x - pylonWidth/2, pR_ground.y);
+        ctx.lineTo(pR_top.x - pylonWidth/4, pR_top.y);
+        ctx.lineTo(pR_top.x + pylonWidth/4, pR_top.y);
+        ctx.lineTo(pR_ground.x + pylonWidth/2, pR_ground.y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillRect(pR_top.x - pylonWidth * 1.5, pR_top.y + 12 * pR_ground.scale, pylonWidth * 3, 3 * pR_ground.scale);
+        ctx.strokeRect(pR_top.x - pylonWidth * 1.5, pR_top.y + 12 * pR_ground.scale, pylonWidth * 3, 3 * pR_ground.scale);
+
+        // Periodical heavy-rail overhead steel trusses/arches bridging left & right (Subway Surfers feel!)
+        if (i % 6 === 0) {
+          ctx.strokeStyle = '#202428';
+          ctx.lineWidth = 5 * pL_ground.scale;
+          ctx.beginPath();
+          ctx.moveTo(pL_ground.x, pL_ground.y);
+          ctx.quadraticCurveTo((pL_top.x + pR_top.x) / 2, pL_top.y - 48 * pL_ground.scale, pR_ground.x, pR_ground.y);
+          ctx.stroke();
+
+          // Green glow center safety strip on the arches
+          ctx.strokeStyle = '#00FF00';
+          ctx.lineWidth = 1.3 * pL_ground.scale;
+          ctx.beginPath();
+          ctx.moveTo(pL_ground.x, pL_ground.y);
+          ctx.quadraticCurveTo((pL_top.x + pR_top.x)/2, pL_top.y - 46 * pL_ground.scale, pR_ground.x, pR_ground.y);
+          ctx.stroke();
+
+          // Blinking warning aircraft indicator light beacons on peak center
+          const peakX = (pL_top.x + pR_top.x) / 2;
+          const peakY = pL_top.y - 34 * pL_ground.scale;
+          ctx.fillStyle = Date.now() % 500 < 250 ? '#FF5000' : '#221000';
+          ctx.beginPath();
+          ctx.arc(peakX, peakY, 4 * pL_ground.scale, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Floating Cyber Neon Billboards flickering along side boundaries
+        if (i % 4 === 2) {
+          const isLeftBoard = i % 8 === 2;
+          const boardX = isLeftBoard ? -340 : 340;
+          const baseP = projectPoint(boardX, 35, stepZ);
+          const s = baseP.scale;
+          const bw = 50 * s;
+          const bh = 24 * s;
+
+          // Draw neon metal backplate
+          ctx.fillStyle = '#090B0D';
+          ctx.strokeStyle = selectedAlien.color;
+          ctx.lineWidth = 1.5 * s;
+          ctx.fillRect(baseP.x - bw/2, baseP.y - bh/2, bw, bh);
+          ctx.strokeRect(baseP.x - bw/2, baseP.y - bh/2, bw, bh);
+
+          // Support steel ground beam
+          const pGround = projectPoint(boardX, 0, stepZ);
+          ctx.strokeStyle = '#32373C';
+          ctx.lineWidth = 2 * s;
+          ctx.beginPath();
+          ctx.moveTo(baseP.x, baseP.y + bh/2);
+          ctx.lineTo(pGround.x, pGround.y);
+          ctx.stroke();
+
+          // High fidelity corporate glowing text
+          ctx.fillStyle = selectedAlien.color;
+          ctx.font = `black ${Math.max(4.5, 7.5 * s)}px monospace`;
+          ctx.textAlign = 'center';
+          const labels = ["BELLWOOD", "VILGAX WANTED", "OMNITRIX V.4", "NULL-VOID", "OSMOSIS", "ANIMO SYSTEMS"];
+          const label = labels[i % labels.length];
+          // Simple blinking overlay
+          if (Date.now() % 1000 < 900) {
+            ctx.fillText(label, baseP.x, baseP.y + 2.5 * s);
+          }
+
+          // Glowing safety frame
+          ctx.strokeStyle = 'rgba(50, 255, 50, 0.3)';
+          ctx.strokeRect(baseP.x - bw/2 - 2 * s, baseP.y - bh/2 - 2 * s, bw + 4 * s, bh + 4 * s);
+        }
+
+        // Glowing golden power cable linking towers together
+        if (i % 2 === 0) {
+          ctx.strokeStyle = 'rgba(255, 153, 0, 0.28)';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.moveTo(pL_top.x, pL_top.y + 12 * pL_ground.scale);
+          ctx.bezierCurveTo((pL_top.x + pR_top.x) / 2, (pL_top.y + pR_top.y)/2 + 25 * pL_ground.scale, (pL_top.x + pR_top.x) / 2, (pL_top.y + pR_top.y)/2 + 25 * pL_ground.scale, pR_top.x, pR_top.y + 12 * pR_ground.scale);
+          ctx.stroke();
+        }
+
+        // Organic Cactus Palms / Alien Vegetation
+        if (i % 3 === 0) {
+          // Left tree
+          const tL_base = projectPoint(-345, 0, stepZ);
+          const treeScale = tL_base.scale;
+          ctx.fillStyle = '#084B24'; // deep alien forest green
+          ctx.beginPath();
+          ctx.arc(tL_base.x, tL_base.y - 32 * treeScale, 18 * treeScale, 0, Math.PI * 2);
+          ctx.arc(tL_base.x - 12 * treeScale, tL_base.y - 44 * treeScale, 11 * treeScale, 0, Math.PI * 2);
+          ctx.arc(tL_base.x + 12 * treeScale, tL_base.y - 44 * treeScale, 11 * treeScale, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Wood bark
+          ctx.fillStyle = '#422B1E';
+          ctx.fillRect(tL_base.x - 3 * treeScale, tL_base.y - 32 * treeScale, 6 * treeScale, 32 * treeScale);
+
+          // Right tree
+          const tR_base = projectPoint(345, 0, stepZ);
+          ctx.fillStyle = '#084B24';
+          ctx.beginPath();
+          ctx.arc(tR_base.x, tR_base.y - 32 * treeScale, 18 * treeScale, 0, Math.PI * 2);
+          ctx.arc(tR_base.x - 12 * treeScale, tR_base.y - 44 * treeScale, 11 * treeScale, 0, Math.PI * 2);
+          ctx.arc(tR_base.x + 12 * treeScale, tR_base.y - 44 * treeScale, 11 * treeScale, 0, Math.PI * 2);
+          ctx.fill();
+          
+          ctx.fillStyle = '#422B1E';
+          ctx.fillRect(tR_base.x - 3 * treeScale, tR_base.y - 32 * treeScale, 6 * treeScale, 32 * treeScale);
+        }
+      }
+
+      // Let's draw the 3 distinct Ballast/Gravel background beds for the 3 tracks
+      for (let l = 0; l < 3; l++) {
+        const rx = -trackWidth + (l + 0.5) * laneWidth * 2;
+        ctx.fillStyle = l % 2 === 0 ? '#1b1c1d' : '#141516'; // distinct gravel color contrast
+        ctx.beginPath();
+        const p1 = projectPoint(rx - laneWidth + 10, 0, maxZ);
+        const p2 = projectPoint(rx + laneWidth - 10, 0, maxZ);
+        const p3 = projectPoint(rx + laneWidth - 10, 0, 15);
+        const p4 = projectPoint(rx - laneWidth + 10, 0, 15);
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.lineTo(p3.x, p3.y);
+        ctx.lineTo(p4.x, p4.y);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // Draw horizontal rail track sleepers (ties) moving down the perspective
       const segmentCount = 20;
       for (let i = 0; i < segmentCount; i++) {
         const stepZ = ((i * (maxZ / segmentCount)) - trackOffsetRef.current + maxZ) % maxZ;
         if (stepZ < 15) continue;
 
-        const leftPoint = projectPoint(-trackWidth, 0, stepZ);
-        const rightPoint = projectPoint(trackWidth, 0, stepZ);
+        // Draw wooden sleepers across each of the 3 tracks independently!
+        for (let l = 0; l < 3; l++) {
+          const rx = -trackWidth + (l + 0.5) * laneWidth * 2;
+          const leftPoint = projectPoint(rx - 45, 0, stepZ);
+          const rightPoint = projectPoint(rx + 45, 0, stepZ);
+          const projC = projectPoint(rx, 0, stepZ);
 
-        // draw ties
-        ctx.beginPath();
-        ctx.moveTo(leftPoint.x, leftPoint.y);
-        ctx.lineTo(rightPoint.x, rightPoint.y);
-        // glowing ties every 4 elements
-        if (i % 4 === 0) {
-          ctx.strokeStyle = 'rgba(50, 255, 50, 0.25)';
-          ctx.lineWidth = 3;
-        } else {
-          ctx.strokeStyle = '#1e2421';
-          ctx.lineWidth = 1.5;
+          const woodThickness = 5 * projC.scale;
+
+          // Wood sleeper/tie block
+          ctx.fillStyle = '#78432F'; // Rich, beautiful brown railway wood color
+          ctx.strokeStyle = '#4A281B';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.roundRect(leftPoint.x, leftPoint.y - woodThickness / 2, (rightPoint.x - leftPoint.x), woodThickness, 1);
+          ctx.fill();
+          ctx.stroke();
+
+          // Steel mounting clamp bolts on sleepers holding rails
+          ctx.fillStyle = '#ABB2B9';
+          ctx.beginPath();
+          ctx.arc(leftPoint.x + (rightPoint.x - leftPoint.x) * 0.18, leftPoint.y, Math.max(0.6, 1.4 * projC.scale), 0, Math.PI * 2);
+          ctx.arc(leftPoint.x + (rightPoint.x - leftPoint.x) * 0.82, leftPoint.y, Math.max(0.6, 1.4 * projC.scale), 0, Math.PI * 2);
+          ctx.fill();
         }
+      }
+
+      // Draw shiny parallel metal tracks running in realistic 3D perspective
+      for (let l = 0; l < 3; l++) {
+        const rx = -trackWidth + (l + 0.5) * laneWidth * 2;
+        
+        const railL_far = projectPoint(rx - 30, 0, maxZ);
+        const railL_near = projectPoint(rx - 30, 0, 15);
+        const railR_far = projectPoint(rx + 30, 0, maxZ);
+        const railR_near = projectPoint(rx + 30, 0, 15);
+
+        // Draw solid structural base of rails
+        ctx.strokeStyle = '#566573';
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.moveTo(railL_far.x, railL_far.y);
+        ctx.lineTo(railL_near.x, railL_near.y);
+        ctx.moveTo(railR_far.x, railR_far.y);
+        ctx.lineTo(railR_near.x, railR_near.y);
+        ctx.stroke();
+
+        // Draw hyper gloss metal cap on rails for realistic sheen
+        ctx.strokeStyle = '#F2F4F4';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(railL_far.x, railL_far.y - 1);
+        ctx.lineTo(railL_near.x, railL_near.y - 1);
+        ctx.moveTo(railR_far.x, railR_far.y - 1);
+        ctx.lineTo(railR_near.x, railR_near.y - 1);
         ctx.stroke();
       }
 
@@ -1021,6 +1396,72 @@ export const GameRunner: React.FC<Props> = ({ selectedAlien, onExit, muted, togg
           ctx.ellipse(0, -scaleHeight / 2 - 5, scaleWidth / 4, scaleHeight / 4, 0, 0, Math.PI * 2);
           ctx.fill();
         }
+        else if (obs.type === 'train') {
+          // Vilgax Bio-Mechanical Heavy Rail Train Carrier
+          ctx.shadowColor = '#FF1E27';
+          ctx.shadowBlur = Math.max(0, 14 * proj.scale);
+          
+          // Main train locomotive body cabin
+          ctx.fillStyle = '#1B2631'; // futuristic dark steel
+          ctx.strokeStyle = '#E74C3C'; // glowing crimson armor borders
+          ctx.lineWidth = 2.5;
+
+          ctx.beginPath();
+          // Front nose of train slightly trapezoidal
+          ctx.moveTo(-scaleWidth / 1.8, 0);
+          ctx.lineTo(-scaleWidth / 2, -scaleHeight * 0.92);
+          ctx.quadraticCurveTo(0, -scaleHeight * 1.05, scaleWidth / 2, -scaleHeight * 0.92);
+          ctx.lineTo(scaleWidth / 1.8, 0);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          // Horizontal/diagonal armored protective ridges
+          ctx.fillStyle = '#C0392B'; // dark crimson iron blocks
+          ctx.fillRect(-scaleWidth / 2 + 3, -scaleHeight * 0.45, scaleWidth - 6, scaleHeight * 0.22);
+          ctx.strokeRect(-scaleWidth / 2 + 3, -scaleHeight * 0.45, scaleWidth - 6, scaleHeight * 0.22);
+
+          // Front vents grille
+          ctx.fillStyle = '#111';
+          const ventY = -scaleHeight * 0.22;
+          const ventH = scaleHeight * 0.16;
+          ctx.fillRect(-scaleWidth / 3.5, ventY, scaleWidth / 1.75, ventH);
+          ctx.strokeStyle = '#D5D8DC';
+          ctx.lineWidth = 1;
+          for (let vx = -scaleWidth / 4; vx <= scaleWidth / 4; vx += 8 * proj.scale) {
+            ctx.beginPath();
+            ctx.moveTo(vx, ventY);
+            ctx.lineTo(vx, ventY + ventH);
+            ctx.stroke();
+          }
+
+          // Dynamic front command windscreen
+          ctx.fillStyle = 'rgba(0, 240, 255, 0.4)';
+          ctx.strokeStyle = '#00F0FF';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(-scaleWidth / 2.6, -scaleHeight * 0.88);
+          ctx.lineTo(-scaleWidth / 3.2, -scaleHeight * 0.65);
+          ctx.lineTo(scaleWidth / 3.2, -scaleHeight * 0.65);
+          ctx.lineTo(scaleWidth / 2.6, -scaleHeight * 0.88);
+          ctx.quadraticCurveTo(0, -scaleHeight * 0.95, -scaleWidth / 2.6, -scaleHeight * 0.88);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          // Intense glowing Subway Headlights
+          const headlightY = -scaleHeight * 0.28;
+          ctx.shadowBlur = Math.max(4, 18 * proj.scale);
+          ctx.shadowColor = '#FF9900';
+          ctx.fillStyle = '#FFF7E6';
+          
+          ctx.beginPath();
+          ctx.arc(-scaleWidth / 3, headlightY, 4.5 * proj.scale, 0, Math.PI * 2);
+          ctx.arc(scaleWidth / 3, headlightY, 4.5 * proj.scale, 0, Math.PI * 2);
+          ctx.fill();
+          
+          ctx.shadowBlur = 0; // reset
+        }
 
         ctx.restore();
         ctx.shadowBlur = 0; // reset
@@ -1104,6 +1545,20 @@ export const GameRunner: React.FC<Props> = ({ selectedAlien, onExit, muted, togg
       
       // Interpolate smooth horizontal transition curves
       const playerProj = projectPoint(playerLaneX, playerRef.current.y, COLLISION_PLANE_Z);
+
+      // Draw custom Subway Surfer style dynamic ground shadow
+      const groundProj = projectPoint(playerLaneX, 0, COLLISION_PLANE_Z);
+      ctx.save();
+      ctx.translate(groundProj.x, groundProj.y);
+      const jumpHeight = playerRef.current.y;
+      const shadowFactor = Math.max(0.15, 1 - jumpHeight / 120);
+      const sWidth = 32 * groundProj.scale * shadowFactor;
+      const sHeight = 11 * groundProj.scale * shadowFactor;
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, sWidth, sHeight, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
 
       ctx.save();
       ctx.translate(playerProj.x, playerProj.y);
@@ -1303,6 +1758,247 @@ export const GameRunner: React.FC<Props> = ({ selectedAlien, onExit, muted, togg
 
   // Drawing actual active alien geometry blocks on the screen
   const drawActiveAlienBody = (ctx: CanvasRenderingContext2D, alien: Alien, w: number, h: number) => {
+    // Check if the preloaded high-fidelity corporate image asset was loaded successfully
+    const img = alienImagesRef.current[alien.id];
+    const imageLoaded = img && img.complete && img.naturalWidth > 0;
+
+    if (imageLoaded) {
+      ctx.save();
+      
+      const isJumping = playerRef.current.isJumping;
+      const isSliding = playerRef.current.isSliding;
+
+      // Base timing for running leg/arm swing movement (Subway Surfers feel)
+      const runCycle = Date.now() / 85; 
+      const legSwing = Math.sin(runCycle);
+      const armSwing = Math.cos(runCycle);
+
+      let bobY = 0;
+      let tiltAngle = 0;
+      
+      if (!isJumping && !isSliding) {
+        bobY = Math.abs(Math.sin(runCycle)) * 4.5; 
+        tiltAngle = legSwing * 0.04; 
+      } else if (isJumping) {
+        tiltAngle = -0.06; // aerodynamics lean
+      } else if (isSliding) {
+        tiltAngle = 0.14; // skid drag angle
+      }
+
+      ctx.translate(0, bobY);
+      ctx.rotate(tiltAngle);
+
+      const color = alien.color;
+      const accent = alien.accentColor;
+
+      // Vertical coordinates mapping (y = 0 is foot bottom landing)
+      const playerScale = w / 32; 
+      const bodyWidth = 18 * playerScale;
+      const headSize = 10 * playerScale;
+
+      // Crouch-scaling for Subway Surfers sliding under bars
+      const hipsY      = isSliding ? -6 * playerScale   : -18 * playerScale;
+      const chestY     = isSliding ? -15 * playerScale  : -36 * playerScale;
+      const headY      = isSliding ? -24 * playerScale  : -49 * playerScale;
+      const shoulderY  = (chestY + headY) / 2.05;
+
+      // 1. Draw custom extra visual details in the background (tail, wings, sparks)
+      if (alien.id === 'stinkfly') {
+        ctx.fillStyle = 'rgba(50, 255, 100, 0.45)';
+        const wingFreq = Math.sin(Date.now() / 25) * 12 * playerScale;
+        ctx.beginPath();
+        ctx.ellipse(-bodyWidth/1.1, chestY + 5*playerScale, 18*playerScale, 5*playerScale, 0.4 + Math.sin(Date.now()/30)*0.1, 0, Math.PI*2);
+        ctx.ellipse(bodyWidth/1.1, chestY + 5*playerScale, 18*playerScale, 5*playerScale, -0.4 - Math.sin(Date.now()/30)*0.1, 0, Math.PI*2);
+        ctx.fill();
+      } else if (alien.id === 'xlr8') {
+        ctx.strokeStyle = '#00F0FF';
+        ctx.lineWidth = 3.2 * playerScale;
+        ctx.beginPath();
+        ctx.moveTo(0, chestY + 8 * playerScale);
+        ctx.quadraticCurveTo(-14 * playerScale, chestY + 12*playerScale + legSwing * 5, -24 * playerScale, hipsY + 8*playerScale);
+        ctx.stroke();
+      } else if (alien.id === 'diamondhead') {
+        ctx.fillStyle = '#00FFA3';
+        ctx.beginPath();
+        ctx.moveTo(-bodyWidth/2.2, chestY + 5*playerScale);
+        ctx.lineTo(-bodyWidth - 4*playerScale, chestY - 12*playerScale);
+        ctx.lineTo(-bodyWidth/4, chestY + 10*playerScale);
+        ctx.moveTo(bodyWidth/2.2, chestY + 5*playerScale);
+        ctx.lineTo(bodyWidth + 4*playerScale, chestY - 12*playerScale);
+        ctx.lineTo(bodyWidth/4, chestY + 10*playerScale);
+        ctx.fill();
+      }
+
+      // 2. Render Left and Right Running Legs with explicit Hips, Knees, and Foot soles!
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 5.5 * playerScale;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      // Left leg swing math
+      const leftHipX = -bodyWidth / 3;
+      const leftFootX = isJumping ? -6 * playerScale : (leftHipX + legSwing * 12 * playerScale);
+      const leftFootY = isJumping ? -8 * playerScale : (isSliding ? -1 * playerScale : -Math.max(0, legSwing) * 4 * playerScale);
+      
+      const leftKneeX = (leftHipX + leftFootX) / 2 - 2 * playerScale;
+      const leftKneeY = (hipsY + leftFootY) / 2 + 1.2 * playerScale;
+
+      ctx.beginPath();
+      ctx.moveTo(leftHipX, hipsY);
+      ctx.lineTo(leftKneeX, leftKneeY);
+      ctx.lineTo(leftFootX, leftFootY);
+      ctx.stroke();
+
+      // Right leg swing math
+      const rightHipX = bodyWidth / 3;
+      const rightFootX = isJumping ? 6 * playerScale : (rightHipX - legSwing * 12 * playerScale);
+      const rightFootY = isJumping ? -8 * playerScale : (isSliding ? -1 * playerScale : -Math.max(0, -legSwing) * 4 * playerScale);
+
+      const rightKneeX = (rightHipX + rightFootX) / 2 + 2 * playerScale;
+      const rightKneeY = (hipsY + rightFootY) / 2 + 1.2 * playerScale;
+
+      ctx.beginPath();
+      ctx.moveTo(rightHipX, hipsY);
+      ctx.lineTo(rightKneeX, rightKneeY);
+      ctx.lineTo(rightFootX, rightFootY);
+      ctx.stroke();
+
+      // Draw stylized running mechanical sci-fi boots
+      ctx.fillStyle = '#22252A';
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = 1.2 * playerScale;
+      ctx.beginPath();
+      ctx.ellipse(leftFootX, leftFootY, 6.2 * playerScale, 3 * playerScale, 0, 0, Math.PI*2);
+      ctx.ellipse(rightFootX, rightFootY, 6.2 * playerScale, 3 * playerScale, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.stroke();
+
+      // XLR8 special high-speed rolling orbs
+      if (alien.id === 'xlr8') {
+        ctx.fillStyle = '#0F1214';
+        ctx.beginPath();
+        ctx.arc(leftFootX, leftFootY, 4 * playerScale, 0, Math.PI * 2);
+        ctx.arc(rightFootX, rightFootY, 4 * playerScale, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 3. Render Torso (The running suit armored silhouette)
+      ctx.fillStyle = color;
+      ctx.strokeStyle = '#050D06';
+      ctx.lineWidth = 2.2 * playerScale;
+      
+      ctx.beginPath();
+      ctx.roundRect(-bodyWidth / 2, chestY, bodyWidth, hipsY - chestY, 5 * playerScale);
+      ctx.fill();
+      ctx.stroke();
+
+      // Armored vest piping lines
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = 1.2 * playerScale;
+      ctx.beginPath();
+      ctx.moveTo(-bodyWidth/3.8, chestY + 4 * playerScale);
+      ctx.lineTo(-bodyWidth/3.8, hipsY - 3 * playerScale);
+      ctx.moveTo(bodyWidth/3.8, chestY + 4 * playerScale);
+      ctx.lineTo(bodyWidth/3.8, hipsY - 3 * playerScale);
+      ctx.stroke();
+
+      // The glowing green hourglass Omnitrix brand logo at chest center
+      const omnitrixCenterY = (chestY + hipsY) / 2;
+      ctx.fillStyle = '#000000';
+      ctx.beginPath();
+      ctx.arc(0, omnitrixCenterY, 5 * playerScale, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#00FF00';
+      ctx.beginPath();
+      ctx.moveTo(-2 * playerScale, omnitrixCenterY - 2.2 * playerScale);
+      ctx.lineTo(2 * playerScale, omnitrixCenterY - 2.2 * playerScale);
+      ctx.lineTo(-2 * playerScale, omnitrixCenterY + 2.2 * playerScale);
+      ctx.lineTo(2 * playerScale, omnitrixCenterY + 2.2 * playerScale);
+      ctx.closePath();
+      ctx.fill();
+
+      // 4. Render swinging active arms (Fourarms renders 4 separate swinging arms!)
+      const armCount = alien.id === 'fourarms' ? 4 : 2;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 4 * playerScale;
+
+      for (let armIdx = 0; armIdx < armCount; armIdx++) {
+        const isUpper = armIdx < 2;
+        const isLeft = armIdx % 2 === 0;
+        const swingMagnitude = isLeft ? armSwing : -armSwing;
+
+        const shoulderX = isLeft ? -bodyWidth / 1.8 : bodyWidth / 1.8;
+        const sY = shoulderY + (isUpper ? 0 : 8 * playerScale);
+
+        // Compute hands swaying position coordinates
+        const handX = shoulderX + (isLeft ? -10 : 10) * playerScale;
+        const handY = sY + (isJumping ? -8 : 3 + swingMagnitude * 8) * playerScale;
+
+        // Draw elbow joint crease
+        const elbowX = (shoulderX + handX) / 2 + (isLeft ? -2 : 2) * playerScale;
+        const elbowY = (sY + handY) / 2 + 2 * playerScale;
+
+        ctx.beginPath();
+        ctx.moveTo(shoulderX, sY);
+        ctx.lineTo(elbowX, elbowY);
+        ctx.lineTo(handX, handY);
+        ctx.stroke();
+
+        // Draw armored shoulder pad sockets
+        ctx.fillStyle = '#16191C';
+        ctx.beginPath();
+        ctx.arc(shoulderX, sY, 3.5 * playerScale, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 5. Connect neck & Place High-Fidelity head glass helmet on top of the running torso
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = 3 * playerScale;
+      ctx.beginPath();
+      ctx.moveTo(-2 * playerScale, chestY);
+      ctx.lineTo(0, headY);
+      ctx.lineTo(2 * playerScale, chestY);
+      ctx.stroke();
+
+      ctx.save();
+      ctx.translate(0, headY);
+
+      // Glass bezel ring container holding head image
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2 * playerScale;
+      ctx.fillStyle = 'rgba(5, 18, 5, 0.45)';
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 8;
+      
+      ctx.beginPath();
+      ctx.arc(0, 0, headSize, 0, Math.PI*2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Draw original face portrait JPG clipped inside helmet circular mask
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(0, 0, headSize - 1.2, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.drawImage(img, -headSize, -headSize, headSize * 2, headSize * 2);
+      ctx.restore();
+
+      // Ambient scanning radar laser sweep overlay on head
+      const scanY = Math.sin(Date.now() / 140) * headSize;
+      ctx.strokeStyle = '#00FF00';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(-headSize + 2, scanY);
+      ctx.lineTo(headSize - 2, scanY);
+      ctx.stroke();
+
+      ctx.restore();
+
+      ctx.restore();
+      return; // Preloaded image successfully rendered as a complete biped running form, exit cleanly!
+    }
+
     ctx.save();
     
     // Core glowing accent colors
@@ -1407,6 +2103,130 @@ export const GameRunner: React.FC<Props> = ({ selectedAlien, onExit, muted, togg
         ctx.fill();
         break;
 
+      case 'cannonbolt':
+        if (tempInvincibleRef.current > 0) {
+          // Cannonbolt is currently curled in an invincible spinning sphere!
+          ctx.shadowColor = '#E6C300';
+          ctx.shadowBlur = 15;
+          ctx.fillStyle = '#EAEAEA';
+          ctx.strokeStyle = '#E6C300';
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.arc(0, -h/2, w * 0.7, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          // Golden rotating armor stripes
+          const spinPhase = Date.now() / 60;
+          ctx.fillStyle = '#FFC107';
+          ctx.beginPath();
+          ctx.ellipse(0, -h/2, w * 0.52, w * 0.28, spinPhase, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          // Standing armored form
+          ctx.fillStyle = '#EAEAEA';
+          ctx.strokeStyle = '#D0D0D0';
+          ctx.beginPath();
+          ctx.roundRect(-w*0.6, -h * 0.9, w*1.2, h * 0.9, 12);
+          ctx.fill();
+          ctx.stroke();
+
+          // Yellow side bolts
+          ctx.fillStyle = '#E6C300';
+          ctx.fillRect(-w*0.6, -h * 0.75, w*0.2, h*0.35);
+          ctx.fillRect(w*0.4, -h * 0.75, w*0.2, h*0.35);
+        }
+        break;
+
+      case 'ghostfreak':
+        // Levitating wispy ghost form (wobbly translate y)
+        const ghostWobble = Math.sin(Date.now() / 120) * 4;
+        ctx.translate(0, ghostWobble);
+        ctx.fillStyle = '#DFDFF0';
+        ctx.strokeStyle = '#8E44AD';
+        ctx.lineWidth = 2;
+        
+        ctx.beginPath();
+        ctx.moveTo(-w/2.5, 0);
+        ctx.quadraticCurveTo(-w/2, -h/2, -w/3, -h * 0.9);
+        ctx.lineTo(w/3, -h * 0.9);
+        ctx.quadraticCurveTo(w/2, -h/2, w/2.5, 0);
+        ctx.quadraticCurveTo(0, -h * 0.2, -w/2.5, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Glimmering eye indicator
+        ctx.fillStyle = '#8E44AD';
+        ctx.beginPath();
+        ctx.arc(-w/12, -h/1.4, 4, 0, Math.PI*2);
+        ctx.fill();
+        break;
+
+      case 'wildmutt':
+        // Horizontally crouched feral beast stance
+        ctx.fillStyle = '#D35400';
+        ctx.strokeStyle = '#FF8C00';
+        ctx.beginPath();
+        ctx.ellipse(0, -h/2.2, w * 0.75, h / 2.6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Muscle wild lines
+        ctx.strokeStyle = '#A04000';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(-w*0.4, -h/2.2);
+        ctx.lineTo(-w*0.2, -h/2.2);
+        ctx.moveTo(w*0.2, -h/2.2);
+        ctx.lineTo(w*0.4, -h/2.2);
+        ctx.stroke();
+        break;
+
+      case 'ripjaws':
+        // Aquatic predator design with glowing bio-luminescent fish antenna
+        ctx.fillStyle = '#134E5E';
+        ctx.strokeStyle = '#11998E';
+        ctx.beginPath();
+        ctx.roundRect(-w/2.2, -h * 0.95, w * 0.9, h * 0.95, 6);
+        ctx.fill();
+        ctx.stroke();
+
+        // Bio-antenna light
+        ctx.strokeStyle = '#11998E';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, -h*0.95);
+        ctx.quadraticCurveTo(w/2, -h * 1.15, w/3, -h * 1.25);
+        ctx.stroke();
+
+        ctx.fillStyle = '#1FFFD3';
+        ctx.shadowColor = '#1FFFD3';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(w/3, -h * 1.25, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        break;
+
+      case 'stinkfly':
+        // Winged green bug template
+        ctx.fillStyle = '#5F8500';
+        ctx.strokeStyle = '#709D00';
+        ctx.beginPath();
+        ctx.roundRect(-w/2.5, -h * 0.85, w * 0.8, h * 0.85, 4);
+        ctx.fill();
+        ctx.stroke();
+
+        // Wing flaps expanding left/right
+        const wingFlap = Math.sin(Date.now() / 45) * 14;
+        ctx.fillStyle = '#85B000';
+        ctx.beginPath();
+        ctx.ellipse(-w/1.8, -h/2, w/3, h/4, -wingFlap * Math.PI / 180, 0, Math.PI * 2);
+        ctx.ellipse(w/1.8, -h/2, w/3, h/4, wingFlap * Math.PI / 180, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+
       default:
         // Generic customized alien runner geometry base
         ctx.beginPath();
@@ -1433,11 +2253,17 @@ export const GameRunner: React.FC<Props> = ({ selectedAlien, onExit, muted, togg
         
         {/* Left Stats Section */}
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-black border border-[#00ff00]/30 flex items-center justify-center">
-            {selectedAlien.id === 'heatblast' && <Flame className="w-6 h-6 text-red-500 animate-pulse" />}
-            {selectedAlien.id === 'xlr8' && <Zap className="w-6 h-6 text-cyan-400 animate-pulse" />}
-            {selectedAlien.id === 'diamondhead' && <Shield className="w-6 h-6 text-[#00ff00] animate-pulse" />}
-            {!['heatblast', 'xlr8', 'diamondhead'].includes(selectedAlien.id) && <Zap className="w-6 h-6 text-[#00ff00]" />}
+          <div className="w-11 h-11 rounded-xl bg-black border-2 border-[#00ff00]/30 overflow-hidden flex items-center justify-center shadow-[0_0_10px_rgba(0,255,0,0.15)]">
+            <img
+              src={`/creatures/${selectedAlien.id}.jpg`}
+              alt={selectedAlien.name}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                // hide on error, show fallback icon if file doesn't load
+                e.currentTarget.style.display = 'none';
+              }}
+              referrerPolicy="no-referrer"
+            />
           </div>
           <div>
             <h3 className="font-bold text-white uppercase text-sm tracking-wider flex items-center gap-2">

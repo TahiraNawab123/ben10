@@ -11,14 +11,13 @@ export interface Alien {
     jump: number;     // 1 to 10
     agility: number;  // 1 to 10
   };
-  image?: string;
 }
 
 export interface Obstacle {
   id: string;
   lane: number;       // 0 (left), 1 (center), 2 (right)
   z: number;          // distance from player
-  type: 'barrier' | 'barricade' | 'beam' | 'energyCore' | 'magnet' | 'shield' | 'enemy_drone' | 'enemy_soldier' | 'enemy_laser'; // obstacle or item or enemy/laser
+  type: 'barrier' | 'barricade' | 'beam' | 'energyCore' | 'magnet' | 'shield' | 'enemy_drone' | 'enemy_soldier' | 'enemy_laser' | 'train'; // obstacle or item or enemy/laser
   width: number;
   height: number;
   collected?: boolean;
