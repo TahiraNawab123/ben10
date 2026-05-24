@@ -11,7 +11,7 @@ interface Props {
   playSfx: (type: 'beep' | 'transform' | 'click' | 'jump' | 'slide' | 'coin' | 'crash' | 'powerup') => void;
 }
 
-const COLLISION_PLANE_Z = 35;
+const COLLISION_PLANE_Z = 240;
 
 export const GameRunner: React.FC<Props> = ({ selectedAlien, onExit, muted, toggleMuted, playSfx }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -73,6 +73,7 @@ export const GameRunner: React.FC<Props> = ({ selectedAlien, onExit, muted, togg
   }>>([]);
   const abilityCooldownRef = useRef<number>(0);
   const tempInvincibleRef = useRef<number>(0);
+  const bonusPointsRef = useRef<number>(0);
 
   // Preload and cache all alien images inside GameRunner for instant rendering
   const alienImagesRef = useRef<Record<string, HTMLImageElement>>({});
@@ -127,7 +128,16 @@ export const GameRunner: React.FC<Props> = ({ selectedAlien, onExit, muted, togg
         magnetActive: true,
         magnetTimer: 450 // 7.5 seconds of super-pulling magnet
       }));
-      createTextPopup("RADAR OVERDRIVE SECTOR! 📡🐕", playerRef.current.lane, 25, '#FF8C00');
+      playerProjectilesRef.current.push({
+        id: Math.random().toString(),
+        lane: playerRef.current.lane,
+        z: COLLISION_PLANE_Z + 5,
+        type: 'shockwave',
+        width: 20,
+        height: 20,
+        color: '#FF8C00'
+      });
+      createTextPopup("SONIC BARK EXPLOSION! 📡🐕", playerRef.current.lane, 25, '#FF8C00');
       createParticles(playerRef.current.lane, 15, '#FF8C00', 16);
     } else if (id === 'xlr8') {
       playSfx('jump');
@@ -141,7 +151,7 @@ export const GameRunner: React.FC<Props> = ({ selectedAlien, onExit, muted, togg
       createParticles(playerRef.current.lane, 15, '#FF1E27', 20);
 
       obstaclesRef.current.forEach(obs => {
-        if (obs.lane === playerRef.current.lane && obs.z > 35 && obs.type !== 'energyCore' && obs.type !== 'shield' && obs.type !== 'magnet') {
+        if (obs.lane === playerRef.current.lane && obs.z > COLLISION_PLANE_Z && obs.type !== 'energyCore' && obs.type !== 'shield' && obs.type !== 'magnet') {
           obs.collected = true;
           setPlayer(prev => ({ ...prev, score: prev.score + 100 }));
           for (let k = 0; k < 8; k++) {
@@ -168,6 +178,7 @@ export const GameRunner: React.FC<Props> = ({ selectedAlien, onExit, muted, togg
       else if (id === 'stinkfly') { type = 'slime'; color = '#EEFF41'; }
       else if (id === 'ripjaws') { type = 'lightning'; color = '#17A2B8'; }
       else if (id === 'upgrade') { type = 'plasma'; color = '#32CD32'; }
+      else if (id === 'grey_matter') { type = 'acid'; color = '#00FF88'; }
 
       playerProjectilesRef.current.push({
         id: Math.random().toString(),
@@ -307,6 +318,9 @@ export const GameRunner: React.FC<Props> = ({ selectedAlien, onExit, muted, togg
   useEffect(() => {
     if (gameState !== 'playing') return;
 
+    // Reset combat destruction score accumulator for the new active session run!
+    bonusPointsRef.current = 0;
+
     let frameId: number;
     let spawnCounter = 0;
     let localDistance = 0;
@@ -322,14 +336,44 @@ export const GameRunner: React.FC<Props> = ({ selectedAlien, onExit, muted, togg
 
       // Proportional dimensions mapper helper
       const getWidthAndHeight = (t: Obstacle['type']) => {
-        const width = t === 'train' ? 62 : (t === 'energyCore' || t === 'magnet' || t === 'shield' ? 24 : (t === 'enemy_soldier' ? 45 : (t === 'enemy_drone' ? 38 : 52)));
-        const height = t === 'train' ? 78 : (t === 'beam' ? 45 : (t === 'barrier' ? 24 : (t === 'enemy_soldier' ? 55 : (t === 'enemy_drone' ? 38 : 55))));
+        let width = 52;
+        let height = 55;
+
+        if (t === 'train') {
+          width = 62;
+          height = 78;
+        } else if (t === 'energyCore' || t === 'magnet' || t === 'shield') {
+          width = 24;
+          height = 24;
+        } else if (t === 'enemy_soldier') {
+          width = 45;
+          height = 55;
+        } else if (t === 'enemy_drone') {
+          width = 38;
+          height = 38;
+        } else if (t === 'small_rock') {
+          width = 42;
+          height = 36;
+        } else if (t === 'large_rock') {
+          width = 58;
+          height = 52;
+        } else if (t === 'container') {
+          width = 62;
+          height = 48;
+        } else if (t === 'barrier') {
+          width = 52;
+          height = 24;
+        } else if (t === 'beam') {
+          width = 52;
+          height = 45;
+        }
+
         return { width, height };
       };
 
       if (patternChoice < 0.28) {
         // --- PATTERN 1: STAGGERED SERPENTINE OBSTACLES (Subway Surfers Zigzag) ---
-        // Places barriers and enemies at different depths in all 3 lanes, forcing visual lane changing!
+        // Places barriers and obstacles at different depths in all 3 lanes, forcing lane changing!
         const lanesOrder = [0, 1, 2].sort(() => Math.random() - 0.5);
         
         lanesOrder.forEach((lane, stepIdx) => {
@@ -337,15 +381,29 @@ export const GameRunner: React.FC<Props> = ({ selectedAlien, onExit, muted, togg
           const stepZ = MAX_WORLD_Z + stepIdx * 130;
           let randomType: Obstacle['type'] = 'barricade';
           const r = Math.random();
-          if (r < 0.35) {
+          if (r < 0.18) {
             randomType = 'barrier'; // low jumpable segment
-          } else if (r < 0.65) {
+          } else if (r < 0.35) {
             randomType = 'beam'; // high slidable segment
+          } else if (r < 0.52) {
+            randomType = 'small_rock'; // small rock
+          } else if (r < 0.68) {
+            randomType = 'large_rock'; // large boulder
+          } else if (r < 0.84) {
+            randomType = 'container'; // metal cargo
           } else {
-            randomType = 'enemy_drone'; // shootable enemy
+            randomType = 'enemy_drone'; // hover robot
           }
 
           const { width: w, height: h } = getWidthAndHeight(randomType);
+          
+          let health: number | undefined = undefined;
+          if (randomType === 'enemy_drone' || randomType === 'small_rock' || randomType === 'barrier' || (randomType as string) === 'barricade' || randomType === 'beam') {
+            health = 1;
+          } else if (randomType === 'large_rock' || randomType === 'container') {
+            health = 2;
+          }
+
           spawnedItems.push({
             id: Math.random().toString(),
             lane,
@@ -354,7 +412,7 @@ export const GameRunner: React.FC<Props> = ({ selectedAlien, onExit, muted, togg
             width: w,
             height: h,
             collected: false,
-            health: randomType === 'enemy_drone' ? 1 : undefined
+            health
           });
 
           // Scatter encouraging green energy cores guiding the path between hurdles!
@@ -551,7 +609,7 @@ export const GameRunner: React.FC<Props> = ({ selectedAlien, onExit, muted, togg
 
       // Custom active scores calculations (XLR8 triples coefficient)
       const baseMultiplier = selectedAlien.id === 'xlr8' ? 3 : 1;
-      p.score = Math.floor(p.distance * baseMultiplier) + (p.energy * 10);
+      p.score = Math.floor(p.distance * baseMultiplier) + (p.energy * 10) + bonusPointsRef.current;
 
       // 3.5 Update active player combat projectiles and hit registration
       const nextProjectiles: typeof playerProjectilesRef.current = [];
@@ -600,13 +658,56 @@ export const GameRunner: React.FC<Props> = ({ selectedAlien, onExit, muted, togg
                 points = 250;
                 label = "CYBER GUARD SMASHED! +250";
                 playSfx('powerup');
+              } else if (obs.type === 'small_rock') {
+                points = 100;
+                label = "ROCK OBLITERATED! +100";
+                playSfx('crash');
+              } else if (obs.type === 'large_rock') {
+                points = 200;
+                label = "BOULDER SHATTERED! +200";
+                playSfx('crash');
+              } else if (obs.type === 'container') {
+                points = 250;
+                label = "CONTAINER CRUSHED! +250";
+                playSfx('crash');
+              } else if (obs.type === 'barrier') {
+                points = 80;
+                label = "BARRIER SMASHED! +80";
+                playSfx('crash');
+              } else if (obs.type === 'barricade') {
+                points = 120;
+                label = "BARRICADE CRUSHED! +120";
+                playSfx('crash');
+              } else if (obs.type === 'beam') {
+                points = 100;
+                label = "BEAM SHATTERED! +100";
+                playSfx('crash');
               } else if (obs.type === 'enemy_laser') {
                 points = 20;
-                label = "CHARGE DEFLECTED!";
+                label = "LIGHTNING PLASMA DEFLECTED!";
               }
 
-              p.score += points;
+              // Speed & Effectiveness Reflex bonus based on how fast (or far distance) they hit it!
+              let reflexBonus = 0;
+              let reflexLabel = "";
+              if (obs.z > 350) {
+                reflexBonus = 120;
+                reflexLabel = "PERFECT SNIPE! 🎯 +120";
+              } else if (obs.z > 180) {
+                reflexBonus = 60;
+                reflexLabel = "FAST REFLEX! ⚡ +60";
+              }
+
+              const totalPoints = points + reflexBonus;
+              bonusPointsRef.current += totalPoints;
+              p.score = Math.floor(p.distance * baseMultiplier) + (p.energy * 10) + bonusPointsRef.current;
+
               createTextPopup(label, obs.lane, 35, pProj.color);
+              if (reflexLabel) {
+                setTimeout(() => {
+                  createTextPopup(reflexLabel, obs.lane, 18, '#00FFA3');
+                }, 180);
+              }
             } else {
               createTextPopup("GUARD REINFORCED!", obs.lane, 35, '#FFFFFF');
             }
@@ -622,7 +723,7 @@ export const GameRunner: React.FC<Props> = ({ selectedAlien, onExit, muted, togg
 
       // 4. Update existing obstacles positioning & perform Collision checks
       const nextObstacles: Obstacle[] = [];
-      const COLLISION_PLANE_Z = 35; // depth where human player runs
+      const COLLISION_PLANE_Z = 240; // depth where human player runs
 
       for (let obs of obstaclesRef.current) {
         // Handle projectile laser speed ratios
@@ -722,20 +823,20 @@ export const GameRunner: React.FC<Props> = ({ selectedAlien, onExit, muted, togg
                 playSfx('crash');
                 createTextPopup("SHREDDED! +100", p.lane, p.y, selectedAlien.color);
                 createParticles(p.lane, p.y, selectedAlien.color, 15);
-                p.score += 100;
+                bonusPointsRef.current += 100;
                 keeps = false;
               }
 
               if (!didEvade && obs.type === 'beam' && p.isSliding) {
                 // Dodged barrier successfully by sliding
                 didEvade = true;
-              } else if (!didEvade && obs.type === 'barrier' && p.isJumping) {
-                // Dodged barrier successfully by jumping
+              } else if (!didEvade && (obs.type === 'barrier' || obs.type === 'small_rock') && p.isJumping) {
+                // Dodged barrier or small rock successfully by jumping
                 didEvade = true;
               } else if (!didEvade && obs.type === 'train' && p.isJumping && p.y >= 30) {
                 // Landed cleanly and runs on top of the train roof!
                 didEvade = true;
-                p.score += 75;
+                bonusPointsRef.current += 75;
                 createTextPopup("TRAIN SURFING! 🚈🏄", p.lane, p.y, '#00FFA3');
                 createParticles(p.lane, p.y, '#00FFA3', 10);
               }
@@ -749,7 +850,7 @@ export const GameRunner: React.FC<Props> = ({ selectedAlien, onExit, muted, togg
                }
 
               // 2. Heatblast incinerates barriers automatically
-              if (!didEvade && selectedAlien.id === 'heatblast' && obs.type === 'barrier') {
+              if (!didEvade && selectedAlien.id === 'heatblast' && (obs.type === 'barrier' || obs.type === 'small_rock')) {
                 didEvade = true;
                 createTextPopup("BURNED!", p.lane, p.y, '#FF4D00');
                 createParticles(p.lane, p.y, '#FF4D00', 12);
@@ -1312,6 +1413,118 @@ export const GameRunner: React.FC<Props> = ({ selectedAlien, onExit, muted, togg
           ctx.lineTo(scaleWidth / 3, -scaleHeight / 1.3);
           ctx.stroke();
         }
+        else if (obs.type === 'small_rock') {
+          // Organic small rocks or rubble debris
+          ctx.shadowColor = '#8D99AE';
+          ctx.shadowBlur = 8;
+          ctx.fillStyle = '#4A5759';
+          ctx.strokeStyle = '#2B303A';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(-scaleWidth / 2, 0);
+          ctx.lineTo(-scaleWidth / 2.5, -scaleHeight * 0.4);
+          ctx.lineTo(-scaleWidth * 0.15, -scaleHeight * 0.9);
+          ctx.lineTo(scaleWidth * 0.15, -scaleHeight * 0.85);
+          ctx.lineTo(scaleWidth / 2.5, -scaleHeight * 0.5);
+          ctx.lineTo(scaleWidth / 2, 0);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          // Rocky ridge shadow / texture veins
+          ctx.strokeStyle = '#323639';
+          ctx.lineWidth = 1.2 * proj.scale;
+          ctx.beginPath();
+          ctx.moveTo(-scaleWidth * 0.15, -scaleHeight * 0.9);
+          ctx.lineTo(0, -scaleHeight * 0.25);
+          ctx.lineTo(scaleWidth / 2.5, -scaleHeight * 0.5);
+          ctx.stroke();
+          
+          // Green glowing mineral crystal veins (Omnitrix radiation effect!)
+          ctx.strokeStyle = '#00FF88';
+          ctx.shadowColor = '#00FF88';
+          ctx.shadowBlur = 6;
+          ctx.lineWidth = 0.8 * proj.scale;
+          ctx.beginPath();
+          ctx.moveTo(-scaleWidth * 0.35, -scaleHeight * 0.2);
+          ctx.lineTo(-scaleWidth * 0.15, -scaleHeight * 0.55);
+          ctx.lineTo(scaleWidth * 0.1, -scaleHeight * 0.35);
+          ctx.stroke();
+        }
+        else if (obs.type === 'large_rock') {
+          // Heavy cracked boulder rock
+          ctx.shadowColor = '#5C4033';
+          ctx.shadowBlur = 12;
+          ctx.fillStyle = '#3E3431';
+          ctx.strokeStyle = '#1D1A19';
+          ctx.lineWidth = 2 * proj.scale;
+          ctx.beginPath();
+          ctx.moveTo(-scaleWidth / 2, 0);
+          ctx.lineTo(-scaleWidth / 2.2, -scaleHeight * 0.5);
+          ctx.lineTo(-scaleWidth * 0.25, -scaleHeight * 0.92);
+          ctx.lineTo(scaleWidth * 0.22, -scaleHeight * 0.98);
+          ctx.lineTo(scaleWidth / 2.1, -scaleHeight * 0.5);
+          ctx.lineTo(scaleWidth / 2, 0);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          // Rocky structural cracks with red magma glow texture
+          ctx.strokeStyle = '#FF3300';
+          ctx.shadowColor = '#FF3300';
+          ctx.shadowBlur = 8;
+          ctx.lineWidth = 1.8 * proj.scale;
+          ctx.beginPath();
+          ctx.moveTo(0, -scaleHeight * 0.98);
+          ctx.lineTo(-scaleWidth * 0.1, -scaleHeight * 0.45);
+          ctx.lineTo(scaleWidth * 0.2, -scaleHeight * 0.2);
+          ctx.moveTo(-scaleWidth * 0.35, -scaleHeight * 0.4);
+          ctx.lineTo(-scaleWidth * 0.1, -scaleHeight * 0.45);
+          ctx.stroke();
+
+          // Darker rock surface shading
+          ctx.fillStyle = '#27201E';
+          ctx.beginPath();
+          ctx.moveTo(-scaleWidth / 2, 0);
+          ctx.lineTo(-scaleWidth * 0.1, -scaleHeight * 0.45);
+          ctx.lineTo(scaleWidth * 0.2, -scaleHeight * 0.2);
+          ctx.lineTo(scaleWidth / 2, 0);
+          ctx.closePath();
+          ctx.fill();
+        }
+        else if (obs.type === 'container') {
+          // Industrial Subway Surfers Metal Cargo Container
+          ctx.shadowColor = '#2400FF';
+          ctx.shadowBlur = 10;
+          ctx.fillStyle = '#1D3557';
+          ctx.strokeStyle = '#457B9D';
+          ctx.lineWidth = 2.5 * proj.scale;
+
+          // Outer solid container frame
+          ctx.beginPath();
+          ctx.roundRect(-scaleWidth / 2, -scaleHeight, scaleWidth, scaleHeight, 3);
+          ctx.fill();
+          ctx.stroke();
+
+          // Inner corrugated vertical metal bars/indents
+          ctx.fillStyle = '#162842';
+          const barWidth = 4 * proj.scale;
+          const spacing = 9 * proj.scale;
+          for (let x = -scaleWidth / 2.3; x < scaleWidth / 2.3; x += spacing) {
+            ctx.fillRect(x, -scaleHeight + 4 * proj.scale, barWidth, scaleHeight - 8 * proj.scale);
+          }
+
+          // Metal hinges and steel lockbar details
+          ctx.fillStyle = '#D6E2E9';
+          ctx.fillRect(-6 * proj.scale, -scaleHeight + 10 * proj.scale, 2 * proj.scale, scaleHeight - 20 * proj.scale);
+          ctx.fillRect(4 * proj.scale, -scaleHeight + 10 * proj.scale, 2 * proj.scale, scaleHeight - 20 * proj.scale);
+
+          // Rust and industrial hazard labels
+          ctx.fillStyle = '#E63946';
+          ctx.font = `800 ${Math.max(6, 9 * proj.scale)}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.fillText("CARGO-99", 0, -scaleHeight * 0.7);
+        }
         else if (obs.type === 'enemy_drone') {
           // Metal alien round flying hover drones
           ctx.shadowColor = '#FF1E27';
@@ -1758,492 +1971,1009 @@ export const GameRunner: React.FC<Props> = ({ selectedAlien, onExit, muted, togg
 
   // Drawing actual active alien geometry blocks on the screen
   const drawActiveAlienBody = (ctx: CanvasRenderingContext2D, alien: Alien, w: number, h: number) => {
-    // Check if the preloaded high-fidelity corporate image asset was loaded successfully
+    const isJumping = playerRef.current.isJumping;
+    const isSliding = playerRef.current.isSliding;
+
+    // Use unified precise timing constants for absolute synchronicity of legs, tail, fire, wings, etc.
+    const runCycle = Date.now() / 90;
+    const legSwing = Math.sin(runCycle);
+    const armSwing = Math.cos(runCycle);
+    
+    // Scale modifier matching collision dimensions
+    const playerScale = (w / 32) * 1.35; 
+
+    // Holographic image references
     const img = alienImagesRef.current[alien.id];
     const imageLoaded = img && img.complete && img.naturalWidth > 0;
 
+    // Outer color codes
+    const baseColor = alien.color;
+    const accentColor = alien.accentColor || '#FFFFFF';
+
+    // Particle emissions matching stride speed
+    if (Math.random() < 0.22) {
+      const laneX = (playerRef.current.lane - 1) * 110;
+      if (alien.id === 'heatblast') {
+        particlesRef.current.push({
+          x: laneX + (Math.random() - 0.5) * 20,
+          y: playerRef.current.y + Math.random() * 10,
+          vx: (Math.random() - 0.5) * 1.5,
+          vy: Math.random() * 3.5 + 1.0,
+          color: '#FF5500',
+          size: Math.random() * 3 + 1,
+          alpha: 1.0
+        });
+      } else if (alien.id === 'xlr8') {
+        particlesRef.current.push({
+          x: laneX + (Math.random() - 0.5) * 12,
+          y: playerRef.current.y + Math.random() * 8,
+          vx: -(Math.random() * 2 + 3),
+          vy: (Math.random() - 0.5) * 1.0,
+          color: '#00F0FF',
+          size: Math.random() * 2.5 + 0.8,
+          alpha: 0.85
+        });
+      } else if (alien.id === 'diamondhead') {
+        particlesRef.current.push({
+          x: laneX + (Math.random() - 0.5) * 18,
+          y: playerRef.current.y + Math.random() * 12,
+          vx: (Math.random() - 0.5) * 1.2,
+          vy: (Math.random() - 0.5) * 1.2,
+          color: '#00FFA3',
+          size: Math.random() * 3.5 + 1.0,
+          alpha: 0.95
+        });
+      }
+    }
+
+    // 1. DYNAMIC HIGH-RES UNIFIED ALIEN IMAGE RENDERING CORE
+    // Rendering the real high-fidelity alien image running directly on the track!
     if (imageLoaded) {
       ctx.save();
-      
-      const isJumping = playerRef.current.isJumping;
-      const isSliding = playerRef.current.isSliding;
-
-      // Base timing for running leg/arm swing movement (Subway Surfers feel)
-      const runCycle = Date.now() / 85; 
-      const legSwing = Math.sin(runCycle);
-      const armSwing = Math.cos(runCycle);
 
       let bobY = 0;
       let tiltAngle = 0;
-      
-      if (!isJumping && !isSliding) {
-        bobY = Math.abs(Math.sin(runCycle)) * 4.5; 
-        tiltAngle = legSwing * 0.04; 
+      let scaleX = 1.0;
+      let scaleY = 1.0;
+
+      if (isSliding) {
+        bobY = 4 * playerScale;
+        tiltAngle = 0.15;
+        scaleY = 0.55; // Squished down dynamically for sliding
+        scaleX = 1.35; // Expand flat footprint representation
       } else if (isJumping) {
-        tiltAngle = -0.06; // aerodynamics lean
-      } else if (isSliding) {
-        tiltAngle = 0.14; // skid drag angle
+        bobY = 0;
+        tiltAngle = -0.08; // Action leap lean
+        scaleY = 1.15;     // Stretch high vertical
+        scaleX = 0.85;     // Slender jump envelope
+      } else {
+        // Natural human-like sprint gait bobbing stride and kinetic leans
+        bobY = Math.abs(Math.sin(runCycle)) * 3.5 * playerScale;
+        tiltAngle = Math.sin(runCycle) * 0.04 + 0.05; // natural runner front-lean
+        scaleY = 1.0 + Math.sin(runCycle * 2) * 0.02;
+        scaleX = 1.0 - Math.sin(runCycle * 2) * 0.02;
       }
 
-      ctx.translate(0, bobY);
+      ctx.translate(0, -bobY);
       ctx.rotate(tiltAngle);
+      ctx.scale(scaleX, scaleY);
 
-      const color = alien.color;
-      const accent = alien.accentColor;
-
-      // Vertical coordinates mapping (y = 0 is foot bottom landing)
-      const playerScale = w / 32; 
-      const bodyWidth = 18 * playerScale;
-      const headSize = 10 * playerScale;
-
-      // Crouch-scaling for Subway Surfers sliding under bars
-      const hipsY      = isSliding ? -6 * playerScale   : -18 * playerScale;
-      const chestY     = isSliding ? -15 * playerScale  : -36 * playerScale;
-      const headY      = isSliding ? -24 * playerScale  : -49 * playerScale;
-      const shoulderY  = (chestY + headY) / 2.05;
-
-      // 1. Draw custom extra visual details in the background (tail, wings, sparks)
-      if (alien.id === 'stinkfly') {
-        ctx.fillStyle = 'rgba(50, 255, 100, 0.45)';
-        const wingFreq = Math.sin(Date.now() / 25) * 12 * playerScale;
-        ctx.beginPath();
-        ctx.ellipse(-bodyWidth/1.1, chestY + 5*playerScale, 18*playerScale, 5*playerScale, 0.4 + Math.sin(Date.now()/30)*0.1, 0, Math.PI*2);
-        ctx.ellipse(bodyWidth/1.1, chestY + 5*playerScale, 18*playerScale, 5*playerScale, -0.4 - Math.sin(Date.now()/30)*0.1, 0, Math.PI*2);
-        ctx.fill();
-      } else if (alien.id === 'xlr8') {
-        ctx.strokeStyle = '#00F0FF';
-        ctx.lineWidth = 3.2 * playerScale;
-        ctx.beginPath();
-        ctx.moveTo(0, chestY + 8 * playerScale);
-        ctx.quadraticCurveTo(-14 * playerScale, chestY + 12*playerScale + legSwing * 5, -24 * playerScale, hipsY + 8*playerScale);
-        ctx.stroke();
-      } else if (alien.id === 'diamondhead') {
-        ctx.fillStyle = '#00FFA3';
-        ctx.beginPath();
-        ctx.moveTo(-bodyWidth/2.2, chestY + 5*playerScale);
-        ctx.lineTo(-bodyWidth - 4*playerScale, chestY - 12*playerScale);
-        ctx.lineTo(-bodyWidth/4, chestY + 10*playerScale);
-        ctx.moveTo(bodyWidth/2.2, chestY + 5*playerScale);
-        ctx.lineTo(bodyWidth + 4*playerScale, chestY - 12*playerScale);
-        ctx.lineTo(bodyWidth/4, chestY + 10*playerScale);
-        ctx.fill();
-      }
-
-      // 2. Render Left and Right Running Legs with explicit Hips, Knees, and Foot soles!
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 5.5 * playerScale;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-
-      // Left leg swing math
-      const leftHipX = -bodyWidth / 3;
-      const leftFootX = isJumping ? -6 * playerScale : (leftHipX + legSwing * 12 * playerScale);
-      const leftFootY = isJumping ? -8 * playerScale : (isSliding ? -1 * playerScale : -Math.max(0, legSwing) * 4 * playerScale);
-      
-      const leftKneeX = (leftHipX + leftFootX) / 2 - 2 * playerScale;
-      const leftKneeY = (hipsY + leftFootY) / 2 + 1.2 * playerScale;
-
+      // High-contrast neon track platform under runner's feet
+      ctx.save();
+      ctx.scale(1.2, 0.45);
       ctx.beginPath();
-      ctx.moveTo(leftHipX, hipsY);
-      ctx.lineTo(leftKneeX, leftKneeY);
-      ctx.lineTo(leftFootX, leftFootY);
+      ctx.arc(0, 0, 16 * playerScale, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0, 255, 120, 0.15)';
+      ctx.fill();
+      ctx.strokeStyle = baseColor;
+      ctx.lineWidth = 2.0;
       ctx.stroke();
+      ctx.restore();
 
-      // Right leg swing math
-      const rightHipX = bodyWidth / 3;
-      const rightFootX = isJumping ? 6 * playerScale : (rightHipX - legSwing * 12 * playerScale);
-      const rightFootY = isJumping ? -8 * playerScale : (isSliding ? -1 * playerScale : -Math.max(0, -legSwing) * 4 * playerScale);
+      // Draw the original beautifully preloaded full-body art on track surface as the direct runner
+      // Using globalCompositeOperation 'screen' seamlessly handles transparent black image margins inside dark tracks!
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.shadowColor = baseColor;
+      ctx.shadowBlur = 10;
 
-      const rightKneeX = (rightHipX + rightFootX) / 2 + 2 * playerScale;
-      const rightKneeY = (hipsY + rightFootY) / 2 + 1.2 * playerScale;
+      // Render full width/height boundary
+      ctx.drawImage(
+        img,
+        -w * 1.35,
+        -h * 1.35,
+        w * 2.7,
+        h * 1.45
+      );
+      ctx.restore();
 
+      // Glowing active green core Omnitrix chest decal
+      const badgeY = isSliding ? -h * 0.35 : -h * 0.65;
+      ctx.save();
+      ctx.fillStyle = '#0F1215';
+      ctx.strokeStyle = '#00FF00';
+      ctx.lineWidth = 1.5 * playerScale;
+      ctx.shadowColor = '#00FF00';
+      ctx.shadowBlur = 6;
       ctx.beginPath();
-      ctx.moveTo(rightHipX, hipsY);
-      ctx.lineTo(rightKneeX, rightKneeY);
-      ctx.lineTo(rightFootX, rightFootY);
-      ctx.stroke();
-
-      // Draw stylized running mechanical sci-fi boots
-      ctx.fillStyle = '#22252A';
-      ctx.strokeStyle = accent;
-      ctx.lineWidth = 1.2 * playerScale;
-      ctx.beginPath();
-      ctx.ellipse(leftFootX, leftFootY, 6.2 * playerScale, 3 * playerScale, 0, 0, Math.PI*2);
-      ctx.ellipse(rightFootX, rightFootY, 6.2 * playerScale, 3 * playerScale, 0, 0, Math.PI*2);
+      ctx.arc(0, badgeY, 4.2 * playerScale, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
 
-      // XLR8 special high-speed rolling orbs
-      if (alien.id === 'xlr8') {
-        ctx.fillStyle = '#0F1214';
-        ctx.beginPath();
-        ctx.arc(leftFootX, leftFootY, 4 * playerScale, 0, Math.PI * 2);
-        ctx.arc(rightFootX, rightFootY, 4 * playerScale, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // 3. Render Torso (The running suit armored silhouette)
-      ctx.fillStyle = color;
-      ctx.strokeStyle = '#050D06';
-      ctx.lineWidth = 2.2 * playerScale;
-      
+      // Center green hourglass
+      ctx.fillStyle = '#00ff88';
       ctx.beginPath();
-      ctx.roundRect(-bodyWidth / 2, chestY, bodyWidth, hipsY - chestY, 5 * playerScale);
-      ctx.fill();
-      ctx.stroke();
-
-      // Armored vest piping lines
-      ctx.strokeStyle = accent;
-      ctx.lineWidth = 1.2 * playerScale;
-      ctx.beginPath();
-      ctx.moveTo(-bodyWidth/3.8, chestY + 4 * playerScale);
-      ctx.lineTo(-bodyWidth/3.8, hipsY - 3 * playerScale);
-      ctx.moveTo(bodyWidth/3.8, chestY + 4 * playerScale);
-      ctx.lineTo(bodyWidth/3.8, hipsY - 3 * playerScale);
-      ctx.stroke();
-
-      // The glowing green hourglass Omnitrix brand logo at chest center
-      const omnitrixCenterY = (chestY + hipsY) / 2;
-      ctx.fillStyle = '#000000';
-      ctx.beginPath();
-      ctx.arc(0, omnitrixCenterY, 5 * playerScale, 0, Math.PI*2);
-      ctx.fill();
-      ctx.fillStyle = '#00FF00';
-      ctx.beginPath();
-      ctx.moveTo(-2 * playerScale, omnitrixCenterY - 2.2 * playerScale);
-      ctx.lineTo(2 * playerScale, omnitrixCenterY - 2.2 * playerScale);
-      ctx.lineTo(-2 * playerScale, omnitrixCenterY + 2.2 * playerScale);
-      ctx.lineTo(2 * playerScale, omnitrixCenterY + 2.2 * playerScale);
+      ctx.moveTo(-1.6 * playerScale, badgeY - 1.6 * playerScale);
+      ctx.lineTo(1.6 * playerScale, badgeY - 1.6 * playerScale);
+      ctx.lineTo(-1.6 * playerScale, badgeY + 1.6 * playerScale);
+      ctx.lineTo(1.6 * playerScale, badgeY + 1.6 * playerScale);
       ctx.closePath();
       ctx.fill();
-
-      // 4. Render swinging active arms (Fourarms renders 4 separate swinging arms!)
-      const armCount = alien.id === 'fourarms' ? 4 : 2;
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 4 * playerScale;
-
-      for (let armIdx = 0; armIdx < armCount; armIdx++) {
-        const isUpper = armIdx < 2;
-        const isLeft = armIdx % 2 === 0;
-        const swingMagnitude = isLeft ? armSwing : -armSwing;
-
-        const shoulderX = isLeft ? -bodyWidth / 1.8 : bodyWidth / 1.8;
-        const sY = shoulderY + (isUpper ? 0 : 8 * playerScale);
-
-        // Compute hands swaying position coordinates
-        const handX = shoulderX + (isLeft ? -10 : 10) * playerScale;
-        const handY = sY + (isJumping ? -8 : 3 + swingMagnitude * 8) * playerScale;
-
-        // Draw elbow joint crease
-        const elbowX = (shoulderX + handX) / 2 + (isLeft ? -2 : 2) * playerScale;
-        const elbowY = (sY + handY) / 2 + 2 * playerScale;
-
-        ctx.beginPath();
-        ctx.moveTo(shoulderX, sY);
-        ctx.lineTo(elbowX, elbowY);
-        ctx.lineTo(handX, handY);
-        ctx.stroke();
-
-        // Draw armored shoulder pad sockets
-        ctx.fillStyle = '#16191C';
-        ctx.beginPath();
-        ctx.arc(shoulderX, sY, 3.5 * playerScale, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // 5. Connect neck & Place High-Fidelity head glass helmet on top of the running torso
-      ctx.strokeStyle = accent;
-      ctx.lineWidth = 3 * playerScale;
-      ctx.beginPath();
-      ctx.moveTo(-2 * playerScale, chestY);
-      ctx.lineTo(0, headY);
-      ctx.lineTo(2 * playerScale, chestY);
-      ctx.stroke();
-
-      ctx.save();
-      ctx.translate(0, headY);
-
-      // Glass bezel ring container holding head image
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 2 * playerScale;
-      ctx.fillStyle = 'rgba(5, 18, 5, 0.45)';
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 8;
-      
-      ctx.beginPath();
-      ctx.arc(0, 0, headSize, 0, Math.PI*2);
-      ctx.fill();
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-
-      // Draw original face portrait JPG clipped inside helmet circular mask
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(0, 0, headSize - 1.2, 0, Math.PI * 2);
-      ctx.clip();
-      ctx.drawImage(img, -headSize, -headSize, headSize * 2, headSize * 2);
-      ctx.restore();
-
-      // Ambient scanning radar laser sweep overlay on head
-      const scanY = Math.sin(Date.now() / 140) * headSize;
-      ctx.strokeStyle = '#00FF00';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(-headSize + 2, scanY);
-      ctx.lineTo(headSize - 2, scanY);
-      ctx.stroke();
-
       ctx.restore();
 
       ctx.restore();
-      return; // Preloaded image successfully rendered as a complete biped running form, exit cleanly!
+      return;
     }
+
+    // 2. PROCEDURAL HIGH-FIDELITY ATHLETE RUNNER FALLBACK
+    // Establishes a stylized vector biped runner if assets load slowly
+    ctx.save();
+    ctx.scale(1.2, 0.45);
+    ctx.beginPath();
+    ctx.arc(0, 0, 16 * playerScale, 0, Math.PI * 2);
+    ctx.fillStyle = isSliding ? 'rgba(0, 255, 120, 0.08)' : 'rgba(0, 255, 120, 0.18)';
+    ctx.fill();
+    ctx.strokeStyle = baseColor;
+    ctx.lineWidth = 1.8;
+    ctx.shadowColor = baseColor;
+    ctx.shadowBlur = 8;
+    ctx.stroke();
+    ctx.restore();
 
     ctx.save();
-    
-    // Core glowing accent colors
-    ctx.fillStyle = alien.color;
-    ctx.strokeStyle = alien.accentColor;
-    ctx.lineWidth = 2.5;
 
-    // Head base position offset
-    const headRadius = w / 3.8;
+    let bobY = 0;
+    let tiltAngle = 0;
+    let scaleX = 1.0;
+    let scaleY = 1.0;
 
-    switch (alien.id) {
-      case 'heatblast':
-        // Flame body base
-        ctx.beginPath();
-        ctx.moveTo(-w/2, 0);
-        ctx.lineTo(-w/3, -h/1.4);
-        ctx.lineTo(0, -h);
-        ctx.lineTo(w/3, -h/1.4);
-        ctx.lineTo(w/2, 0);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-
-        // High heat glowing yellow mask segment
-        ctx.fillStyle = '#FFF700';
-        ctx.beginPath();
-        ctx.arc(0, -h/1.3, headRadius, 0, Math.PI * 2);
-        ctx.fill();
-        break;
-
-      case 'xlr8':
-        // Sleek blue velocity runner body
-        ctx.beginPath();
-        ctx.moveTo(-w/2, 0);
-        ctx.lineTo(-w/4, -h);
-        ctx.lineTo(w/4, -h);
-        ctx.lineTo(w/2, 0);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-
-        // High velocity visor line
-        ctx.strokeStyle = '#00F0FF';
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.moveTo(-w/3.5, -h/1.35);
-        ctx.lineTo(w/3.5, -h/1.35);
-        ctx.stroke();
-        break;
-
-      case 'diamondhead':
-        // Crystalline jagged polygon blocks
-        ctx.fillStyle = '#005E3C';
-        ctx.beginPath();
-        ctx.moveTo(-w/2, 0);
-        ctx.lineTo(-w/3, -h/2);
-        ctx.lineTo(0, -h);
-        ctx.lineTo(w/3, -h/2);
-        ctx.lineTo(w/2, 0);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-
-        // Glowing crystal spikes
-        ctx.fillStyle = '#00FFA3';
-        ctx.beginPath();
-        ctx.moveTo(0, -h);
-        ctx.lineTo(-w/4, -h * 1.25);
-        ctx.lineTo(w/4, -h * 1.25);
-        ctx.closePath();
-        ctx.fill();
-        break;
-
-      case 'fourarms':
-        // Extremely bulky red block torso
-        ctx.fillStyle = '#C0392B';
-        ctx.beginPath();
-        ctx.roundRect(-w*0.8, -h, w*1.6, h, 8);
-        ctx.fill();
-        ctx.stroke();
-
-        // Four active extra muscles arms outline
-        ctx.fillStyle = '#E74C3C';
-        ctx.fillRect(-w * 1.05, -h*0.8, w * 0.35, h * 0.5);
-        ctx.fillRect(w * 0.7, -h*0.8, w * 0.35, h * 0.5);
-        break;
-
-      case 'upgrade':
-        // Liquid sci-fi cyberware fluid shape
-        ctx.fillStyle = '#0A0A0A';
-        ctx.strokeStyle = '#32CD32';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.roundRect(-w/2, -h, w, h, 14);
-        ctx.fill();
-        ctx.stroke();
-
-        // Single scanning green visor core eye
-        ctx.fillStyle = '#32CD32';
-        ctx.beginPath();
-        ctx.arc(0, -h/1.5, 5, 0, Math.PI*2);
-        ctx.fill();
-        break;
-
-      case 'cannonbolt':
-        if (tempInvincibleRef.current > 0) {
-          // Cannonbolt is currently curled in an invincible spinning sphere!
-          ctx.shadowColor = '#E6C300';
-          ctx.shadowBlur = 15;
-          ctx.fillStyle = '#EAEAEA';
-          ctx.strokeStyle = '#E6C300';
-          ctx.lineWidth = 4;
-          ctx.beginPath();
-          ctx.arc(0, -h/2, w * 0.7, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.stroke();
-
-          // Golden rotating armor stripes
-          const spinPhase = Date.now() / 60;
-          ctx.fillStyle = '#FFC107';
-          ctx.beginPath();
-          ctx.ellipse(0, -h/2, w * 0.52, w * 0.28, spinPhase, 0, Math.PI * 2);
-          ctx.fill();
-        } else {
-          // Standing armored form
-          ctx.fillStyle = '#EAEAEA';
-          ctx.strokeStyle = '#D0D0D0';
-          ctx.beginPath();
-          ctx.roundRect(-w*0.6, -h * 0.9, w*1.2, h * 0.9, 12);
-          ctx.fill();
-          ctx.stroke();
-
-          // Yellow side bolts
-          ctx.fillStyle = '#E6C300';
-          ctx.fillRect(-w*0.6, -h * 0.75, w*0.2, h*0.35);
-          ctx.fillRect(w*0.4, -h * 0.75, w*0.2, h*0.35);
-        }
-        break;
-
-      case 'ghostfreak':
-        // Levitating wispy ghost form (wobbly translate y)
-        const ghostWobble = Math.sin(Date.now() / 120) * 4;
-        ctx.translate(0, ghostWobble);
-        ctx.fillStyle = '#DFDFF0';
-        ctx.strokeStyle = '#8E44AD';
-        ctx.lineWidth = 2;
-        
-        ctx.beginPath();
-        ctx.moveTo(-w/2.5, 0);
-        ctx.quadraticCurveTo(-w/2, -h/2, -w/3, -h * 0.9);
-        ctx.lineTo(w/3, -h * 0.9);
-        ctx.quadraticCurveTo(w/2, -h/2, w/2.5, 0);
-        ctx.quadraticCurveTo(0, -h * 0.2, -w/2.5, 0);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-
-        // Glimmering eye indicator
-        ctx.fillStyle = '#8E44AD';
-        ctx.beginPath();
-        ctx.arc(-w/12, -h/1.4, 4, 0, Math.PI*2);
-        ctx.fill();
-        break;
-
-      case 'wildmutt':
-        // Horizontally crouched feral beast stance
-        ctx.fillStyle = '#D35400';
-        ctx.strokeStyle = '#FF8C00';
-        ctx.beginPath();
-        ctx.ellipse(0, -h/2.2, w * 0.75, h / 2.6, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-
-        // Muscle wild lines
-        ctx.strokeStyle = '#A04000';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(-w*0.4, -h/2.2);
-        ctx.lineTo(-w*0.2, -h/2.2);
-        ctx.moveTo(w*0.2, -h/2.2);
-        ctx.lineTo(w*0.4, -h/2.2);
-        ctx.stroke();
-        break;
-
-      case 'ripjaws':
-        // Aquatic predator design with glowing bio-luminescent fish antenna
-        ctx.fillStyle = '#134E5E';
-        ctx.strokeStyle = '#11998E';
-        ctx.beginPath();
-        ctx.roundRect(-w/2.2, -h * 0.95, w * 0.9, h * 0.95, 6);
-        ctx.fill();
-        ctx.stroke();
-
-        // Bio-antenna light
-        ctx.strokeStyle = '#11998E';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(0, -h*0.95);
-        ctx.quadraticCurveTo(w/2, -h * 1.15, w/3, -h * 1.25);
-        ctx.stroke();
-
-        ctx.fillStyle = '#1FFFD3';
-        ctx.shadowColor = '#1FFFD3';
-        ctx.shadowBlur = 10;
-        ctx.beginPath();
-        ctx.arc(w/3, -h * 1.25, 4.5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.shadowBlur = 0;
-        break;
-
-      case 'stinkfly':
-        // Winged green bug template
-        ctx.fillStyle = '#5F8500';
-        ctx.strokeStyle = '#709D00';
-        ctx.beginPath();
-        ctx.roundRect(-w/2.5, -h * 0.85, w * 0.8, h * 0.85, 4);
-        ctx.fill();
-        ctx.stroke();
-
-        // Wing flaps expanding left/right
-        const wingFlap = Math.sin(Date.now() / 45) * 14;
-        ctx.fillStyle = '#85B000';
-        ctx.beginPath();
-        ctx.ellipse(-w/1.8, -h/2, w/3, h/4, -wingFlap * Math.PI / 180, 0, Math.PI * 2);
-        ctx.ellipse(w/1.8, -h/2, w/3, h/4, wingFlap * Math.PI / 180, 0, Math.PI * 2);
-        ctx.fill();
-        break;
-
-      default:
-        // Generic customized alien runner geometry base
-        ctx.beginPath();
-        ctx.roundRect(-w/2, -h, w, h, 6);
-        ctx.fill();
-        ctx.stroke();
-
-        // Head
-        ctx.fillStyle = alien.accentColor;
-        ctx.beginPath();
-        ctx.arc(0, -h/1.25, headRadius, 0, Math.PI*2);
-        ctx.fill();
-        break;
+    if (alien.id === 'ghostfreak') {
+      bobY = 15 * playerScale + Math.sin(Date.now() / 200) * 10 * playerScale;
+      tiltAngle = Math.sin(runCycle * 0.5) * 0.05;
+    } else if (alien.id === 'stinkfly') {
+      bobY = 12 * playerScale + Math.sin(Date.now() / 90) * 4 * playerScale;
+      tiltAngle = legSwing * 0.02;
+    } else if (alien.id === 'xlr8') {
+      bobY = isSliding ? 4 * playerScale : Math.abs(legSwing) * 3 * playerScale;
+      tiltAngle = isSliding ? 0.15 : 0.42;
+    } else {
+      if (!isJumping && !isSliding) {
+        bobY = Math.abs(legSwing) * 3.5 * playerScale;
+        tiltAngle = legSwing * 0.035;
+        scaleY = 1.0 + Math.sin(runCycle * 2) * 0.02;
+        scaleX = 1.0 - Math.sin(runCycle * 2) * 0.02;
+      } else if (isJumping) {
+        tiltAngle = -0.06;
+        scaleY = 1.15;
+        scaleX = 0.85;
+      } else if (isSliding) {
+        bobY = 4 * playerScale;
+        tiltAngle = 0.12;
+        scaleY = 0.55;
+        scaleX = 1.3;
+      }
     }
 
-    ctx.restore();
+    ctx.translate(0, -bobY);
+    ctx.rotate(tiltAngle);
+    ctx.scale(scaleX, scaleY);
+
+    ctx.shadowColor = baseColor;
+    ctx.shadowBlur = 10;
+
+    switch (alien.id) {
+      case 'heatblast': {
+        ctx.strokeStyle = '#29150C';
+        ctx.lineWidth = 4.5 * playerScale;
+        ctx.lineCap = 'round';
+
+        const leftLeg = Math.sin(runCycle);
+        const rightLeg = -Math.sin(runCycle);
+        
+        ctx.shadowColor = '#FF3C00';
+        ctx.shadowBlur = 8;
+
+        ctx.strokeStyle = '#FF3C00';
+        ctx.beginPath();
+        ctx.moveTo(-4 * playerScale, -15 * playerScale);
+        ctx.lineTo(-6 * playerScale + leftLeg * 5 * playerScale, -8 * playerScale);
+        ctx.lineTo(-5 * playerScale + leftLeg * 10 * playerScale, 0);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(4 * playerScale, -15 * playerScale);
+        ctx.lineTo(6 * playerScale + rightLeg * 5 * playerScale, -8 * playerScale);
+        ctx.lineTo(5 * playerScale + rightLeg * 10 * playerScale, 0);
+        ctx.stroke();
+
+        ctx.fillStyle = '#29150C';
+        ctx.beginPath();
+        ctx.roundRect(-7 * playerScale, -30 * playerScale, 14 * playerScale, 15 * playerScale, 3);
+        ctx.fill();
+        ctx.strokeStyle = '#FF5500';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.fillStyle = '#FFDD00';
+        ctx.beginPath();
+        ctx.ellipse(0, -22 * playerScale, 2.5 * playerScale, 5 * playerScale, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#29150C';
+        ctx.lineWidth = 3.5 * playerScale;
+        ctx.beginPath();
+        ctx.moveTo(-7 * playerScale, -28 * playerScale);
+        ctx.lineTo(-14 * playerScale, -20 * playerScale + armSwing * 6 * playerScale);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(7 * playerScale, -28 * playerScale);
+        ctx.lineTo(14 * playerScale, -20 * playerScale - armSwing * 6 * playerScale);
+        ctx.stroke();
+
+        ctx.save();
+        ctx.translate(0, -32 * playerScale);
+        ctx.fillStyle = '#29150C';
+        ctx.beginPath();
+        ctx.arc(0, 0, 5.5 * playerScale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#FF5500';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.fillStyle = '#FFDD00';
+        ctx.beginPath();
+        ctx.arc(0, 0, 3 * playerScale, 0, Math.PI * 2);
+        ctx.fill();
+
+        for (let i = 0; i < 5; i++) {
+          const fSize = (Math.random() * 12 + 8) * playerScale;
+          const fX = (Math.random() - 0.5) * 8 * playerScale;
+          const fY = -4 * playerScale - Math.random() * 12 * playerScale;
+          ctx.fillStyle = i % 2 === 0 ? '#FF3C00' : '#FFBB00';
+          ctx.beginPath();
+          ctx.moveTo(fX - 3 * playerScale, -3 * playerScale);
+          ctx.quadraticCurveTo(fX, fY, fX + 3 * playerScale, -3 * playerScale);
+          ctx.fill();
+        }
+        ctx.restore();
+        break;
+      }
+
+      case 'xlr8': {
+        ctx.strokeStyle = '#00F0FF';
+        ctx.lineWidth = 2.5 * playerScale;
+        ctx.lineCap = 'round';
+
+        ctx.beginPath();
+        ctx.moveTo(-4 * playerScale, -14 * playerScale);
+        for (let s = 1; s <= 5; s++) {
+          const segmentX = -s * 8 * playerScale;
+          const segmentY = -11 * playerScale + Math.sin(runCycle - s * 0.7) * 7 * playerScale;
+          ctx.lineTo(segmentX, segmentY);
+        }
+        ctx.stroke();
+
+        const lSwing = Math.sin(runCycle);
+        const rSwing = -Math.sin(runCycle);
+
+        ctx.strokeStyle = '#1D252C';
+        ctx.lineWidth = 3.5 * playerScale;
+        ctx.beginPath();
+        ctx.moveTo(-3 * playerScale, -14 * playerScale);
+        ctx.lineTo(-7 * playerScale + lSwing * 5 * playerScale, -7 * playerScale);
+        ctx.lineTo(-6 * playerScale + lSwing * 9 * playerScale, -2 * playerScale);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(3 * playerScale, -14 * playerScale);
+        ctx.lineTo(7 * playerScale + rSwing * 5 * playerScale, -7 * playerScale);
+        ctx.lineTo(6 * playerScale + rSwing * 9 * playerScale, -2 * playerScale);
+        ctx.stroke();
+
+        ctx.fillStyle = '#050B10';
+        ctx.strokeStyle = '#00F0FF';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(-6 * playerScale + lSwing * 9 * playerScale, 0, 4.2 * playerScale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(-6 * playerScale + lSwing * 9 * playerScale, 0, 4.2 * playerScale, Date.now() / 15, Date.now() / 15 + Math.PI / 2);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(6 * playerScale + rSwing * 9 * playerScale, 0, 4.2 * playerScale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(6 * playerScale + rSwing * 9 * playerScale, 0, 4.2 * playerScale, Date.now() / 15 + Math.PI, Date.now() / 15 + 1.5 * Math.PI);
+        ctx.stroke();
+
+        ctx.fillStyle = '#0F1318';
+        ctx.beginPath();
+        ctx.roundRect(-5 * playerScale, -28 * playerScale, 10 * playerScale, 14 * playerScale, 4);
+        ctx.fill();
+        ctx.strokeStyle = '#00F0FF';
+        ctx.lineWidth = 1.8;
+        ctx.stroke();
+
+        ctx.fillStyle = '#00F0FF';
+        ctx.beginPath();
+        ctx.moveTo(-3 * playerScale, -24 * playerScale);
+        ctx.lineTo(0, -20 * playerScale);
+        ctx.lineTo(3 * playerScale, -24 * playerScale);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.strokeStyle = '#0F1318';
+        ctx.lineWidth = 3.2 * playerScale;
+        ctx.beginPath();
+        ctx.moveTo(-5 * playerScale, -25 * playerScale);
+        ctx.lineTo(-12 * playerScale, -26 * playerScale + lSwing * 2 * playerScale);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(5 * playerScale, -25 * playerScale);
+        ctx.lineTo(12 * playerScale, -26 * playerScale - rSwing * 2 * playerScale);
+        ctx.stroke();
+
+        ctx.save();
+        ctx.translate(3 * playerScale, -31 * playerScale);
+        ctx.rotate(0.2);
+        ctx.fillStyle = '#0F1318';
+        ctx.beginPath();
+        ctx.moveTo(-4 * playerScale, 3 * playerScale);
+        ctx.ellipse(0, 0, 4.5 * playerScale, 6.5 * playerScale, 0.4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#00F0FF';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+
+        ctx.fillStyle = '#00F0FF';
+        ctx.fillRect(1.5 * playerScale, -3 * playerScale, 2 * playerScale, 5 * playerScale);
+        ctx.restore();
+        break;
+      }
+
+      case 'diamondhead': {
+        ctx.fillStyle = '#00FFA3';
+        ctx.strokeStyle = '#004229';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(-4 * playerScale, -26 * playerScale);
+        ctx.lineTo(-15 * playerScale, -38 * playerScale);
+        ctx.lineTo(-10 * playerScale, -22 * playerScale);
+        ctx.closePath();
+        ctx.fill(); ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(4 * playerScale, -26 * playerScale);
+        ctx.lineTo(15 * playerScale, -38 * playerScale);
+        ctx.lineTo(10 * playerScale, -22 * playerScale);
+        ctx.closePath();
+        ctx.fill(); ctx.stroke();
+
+        const dlSwing = Math.sin(runCycle);
+        const drSwing = -Math.sin(runCycle);
+
+        ctx.fillStyle = '#005E3C';
+        ctx.strokeStyle = '#00FFA3';
+        ctx.lineWidth = 2.5 * playerScale;
+        ctx.beginPath();
+        ctx.moveTo(-4 * playerScale, -14 * playerScale);
+        ctx.lineTo(-7 * playerScale + dlSwing * 4 * playerScale, -7 * playerScale);
+        ctx.lineTo(-5 * playerScale + dlSwing * 8 * playerScale, 0);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(4 * playerScale, -14 * playerScale);
+        ctx.lineTo(7 * playerScale + drSwing * 4 * playerScale, -7 * playerScale);
+        ctx.lineTo(5 * playerScale + drSwing * 8 * playerScale, 0);
+        ctx.stroke();
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.roundRect(-8 * playerScale, -27 * playerScale, 16 * playerScale, 13 * playerScale, 4);
+        ctx.fill();
+        ctx.strokeStyle = '#111';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.fillStyle = '#111';
+        ctx.fillRect(-1.5 * playerScale, -27 * playerScale, 3 * playerScale, 13 * playerScale);
+
+        ctx.strokeStyle = '#00FFA3';
+        ctx.lineWidth = 3.5 * playerScale;
+        ctx.beginPath();
+        ctx.moveTo(-8 * playerScale, -25 * playerScale);
+        ctx.lineTo(-15 * playerScale, -15 * playerScale + armSwing * 5 * playerScale);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(8 * playerScale, -25 * playerScale);
+        ctx.lineTo(15 * playerScale, -15 * playerScale - armSwing * 5 * playerScale);
+        ctx.stroke();
+
+        ctx.fillStyle = '#00FFA3';
+        ctx.strokeStyle = '#005E3C';
+        ctx.lineWidth = 1.5;
+        ctx.save();
+        ctx.translate(0, -32 * playerScale);
+        ctx.beginPath();
+        ctx.moveTo(-4 * playerScale, 5 * playerScale);
+        ctx.lineTo(-5 * playerScale, -2 * playerScale);
+        ctx.lineTo(0, -9 * playerScale);
+        ctx.lineTo(5 * playerScale, -2 * playerScale);
+        ctx.lineTo(4 * playerScale, 5 * playerScale);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#FFE500';
+        ctx.beginPath();
+        ctx.arc(-2 * playerScale, -2 * playerScale, 1.2 * playerScale, 0, Math.PI * 2);
+        ctx.arc(2 * playerScale, -2 * playerScale, 1.2 * playerScale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        break;
+      }
+
+      case 'fourarms': {
+        ctx.shadowColor = '#FF1E27';
+        ctx.shadowBlur = 12;
+
+        const flSwing = Math.sin(runCycle);
+        const frSwing = -Math.sin(runCycle);
+
+        ctx.strokeStyle = '#B3141A';
+        ctx.lineWidth = 5 * playerScale;
+        ctx.lineCap = 'round';
+
+        ctx.beginPath();
+        ctx.moveTo(-5 * playerScale, -16 * playerScale);
+        ctx.lineTo(-8 * playerScale + flSwing * 4.5 * playerScale, -8 * playerScale);
+        ctx.lineTo(-7 * playerScale + flSwing * 8 * playerScale, 0);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(5 * playerScale, -16 * playerScale);
+        ctx.lineTo(8 * playerScale + frSwing * 4.5 * playerScale, -8 * playerScale);
+        ctx.lineTo(7 * playerScale + frSwing * 8 * playerScale, 0);
+        ctx.stroke();
+
+        ctx.fillStyle = '#FF1E27';
+        ctx.beginPath();
+        ctx.roundRect(-12 * playerScale, -32 * playerScale, 24 * playerScale, 16 * playerScale, 6);
+        ctx.fill();
+        ctx.strokeStyle = '#111';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        ctx.fillStyle = '#F1C40F';
+        ctx.fillRect(-12 * playerScale, -25 * playerScale, 24 * playerScale, 3.5 * playerScale);
+
+        ctx.strokeStyle = '#FF1E27';
+        ctx.lineWidth = 3.6 * playerScale;
+
+        ctx.beginPath();
+        ctx.moveTo(-11 * playerScale, -28 * playerScale);
+        ctx.lineTo(-20 * playerScale, -22 * playerScale + armSwing * 8 * playerScale);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(11 * playerScale, -28 * playerScale);
+        ctx.lineTo(20 * playerScale, -22 * playerScale - armSwing * 8 * playerScale);
+        ctx.stroke();
+
+        const lowerSwing = Math.sin(runCycle + 1.6);
+        ctx.beginPath();
+        ctx.moveTo(-11 * playerScale, -19 * playerScale);
+        ctx.lineTo(-19 * playerScale, -15 * playerScale + lowerSwing * 8 * playerScale);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(11 * playerScale, -19 * playerScale);
+        ctx.lineTo(19 * playerScale, -15 * playerScale - lowerSwing * 8 * playerScale);
+        ctx.stroke();
+
+        ctx.save();
+        ctx.translate(0, -37 * playerScale);
+        ctx.fillStyle = '#B3141A';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 6.5 * playerScale, 5 * playerScale, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#FFE500';
+        ctx.beginPath();
+        ctx.arc(-2.5 * playerScale, -2.2 * playerScale, 1.2 * playerScale, 0, Math.PI * 2);
+        ctx.arc(2.5 * playerScale, -2.2 * playerScale, 1.2 * playerScale, 0, Math.PI * 2);
+        ctx.arc(-1.2 * playerScale, 0.5 * playerScale, 1.0 * playerScale, 0, Math.PI * 2);
+        ctx.arc(1.2 * playerScale, 0.5 * playerScale, 1.0 * playerScale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        break;
+      }
+
+      case 'upgrade': {
+        ctx.strokeStyle = '#32CD32';
+        ctx.lineWidth = 1.8;
+        ctx.shadowColor = '#32CD32';
+        ctx.shadowBlur = 12;
+
+        const ulSwing = Math.sin(runCycle);
+        const urSwing = -Math.sin(runCycle);
+
+        ctx.fillStyle = '#0F1316';
+        ctx.lineWidth = 3.5 * playerScale;
+        ctx.strokeStyle = '#32CD32';
+
+        ctx.beginPath();
+        ctx.moveTo(-4 * playerScale, -15 * playerScale);
+        ctx.lineTo(-7 * playerScale + ulSwing * 4 * playerScale, -7 * playerScale);
+        ctx.lineTo(-5 * playerScale + ulSwing * 8 * playerScale, 0);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(4 * playerScale, -15 * playerScale);
+        ctx.lineTo(7 * playerScale + urSwing * 4 * playerScale, -7 * playerScale);
+        ctx.lineTo(5 * playerScale + urSwing * 8 * playerScale, 0);
+        ctx.stroke();
+
+        ctx.fillStyle = '#0F1316';
+        ctx.beginPath();
+        ctx.roundRect(-6.5 * playerScale, -27 * playerScale, 13 * playerScale, 13 * playerScale, 8);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(50, 205, 50, 0.35)';
+        ctx.lineWidth = 1;
+        const scanLineY = -27 * playerScale + ((Date.now() / 15) % (13 * playerScale));
+        ctx.beginPath();
+        ctx.moveTo(-6.5 * playerScale, scanLineY);
+        ctx.lineTo(6.5 * playerScale, scanLineY);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(0, -20 * playerScale, 3.5 * playerScale, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#32CD32';
+        ctx.lineWidth = 3.2 * playerScale;
+        ctx.beginPath();
+        ctx.moveTo(-7 * playerScale, -25 * playerScale);
+        ctx.lineTo(-14 * playerScale, -18 * playerScale + armSwing * 6 * playerScale);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(7 * playerScale, -25 * playerScale);
+        ctx.lineTo(14 * playerScale, -18 * playerScale - armSwing * 6 * playerScale);
+        ctx.stroke();
+
+        ctx.save();
+        ctx.translate(0, -32 * playerScale);
+        ctx.fillStyle = '#0F1316';
+        ctx.beginPath();
+        ctx.arc(0, 0, 4.8 * playerScale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#32CD32';
+        ctx.stroke();
+
+        const breathSize = 1.8 * playerScale + Math.sin(Date.now() / 150) * 0.5 * playerScale;
+        ctx.fillStyle = '#32CD32';
+        ctx.shadowColor = '#32CD32';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(0, 0, breathSize, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        break;
+      }
+
+      case 'ghostfreak': {
+        ctx.shadowColor = '#8E44AD';
+        ctx.shadowBlur = 12;
+
+        ctx.globalAlpha = 0.72;
+
+        ctx.strokeStyle = '#8E44AD';
+        ctx.lineWidth = 5 * playerScale;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        ctx.beginPath();
+        ctx.moveTo(0, -12 * playerScale);
+        for (let t = 1; t <= 6; t++) {
+          const tailX = Math.sin(runCycle * 1.5 + t * 0.8) * 6.5 * playerScale;
+          const tailY = -12 * playerScale + t * 5.2 * playerScale;
+          ctx.lineTo(tailX, tailY);
+        }
+        ctx.stroke();
+
+        ctx.fillStyle = '#ECE7F2';
+        ctx.beginPath();
+        ctx.ellipse(0, -22 * playerScale, 6 * playerScale, 11 * playerScale, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#8E44AD';
+        ctx.lineWidth = 1.8 * playerScale;
+        ctx.stroke();
+
+        ctx.lineWidth = 1.5 * playerScale;
+        ctx.strokeStyle = '#5B2C6F';
+        ctx.beginPath();
+        ctx.moveTo(-5 * playerScale, -28 * playerScale);
+        ctx.bezierCurveTo(-2 * playerScale, -24 * playerScale, 2 * playerScale, -18 * playerScale, 4 * playerScale, -15 * playerScale);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#ECE7F2';
+        ctx.lineWidth = 2.8 * playerScale;
+        ctx.beginPath();
+        ctx.moveTo(-5 * playerScale, -22 * playerScale);
+        ctx.lineTo(-12 * playerScale, -12 * playerScale + Math.sin(runCycle) * 3 * playerScale);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(5 * playerScale, -22 * playerScale);
+        ctx.lineTo(12 * playerScale, -12 * playerScale - Math.sin(runCycle) * 3 * playerScale);
+        ctx.stroke();
+
+        ctx.save();
+        ctx.translate(0, -32 * playerScale);
+        ctx.fillStyle = '#ECE7F2';
+        ctx.beginPath();
+        ctx.arc(0, 0, 4.5 * playerScale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#8E44AD';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.fillStyle = '#FF00A3';
+        ctx.shadowColor = '#FF00A3';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(0, -0.5 * playerScale, 1.3 * playerScale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        break;
+      }
+
+      case 'wildmutt': {
+        ctx.shadowColor = '#FF8C00';
+        ctx.shadowBlur = 10;
+
+        const wSwingForward = Math.sin(runCycle);
+        const wSwingBackward = -Math.sin(runCycle);
+
+        ctx.strokeStyle = '#AF5200';
+        ctx.lineWidth = 4.2 * playerScale;
+        ctx.lineCap = 'round';
+
+        ctx.beginPath();
+        ctx.moveTo(-7 * playerScale, -12 * playerScale);
+        ctx.lineTo(-13 * playerScale + wSwingForward * 6 * playerScale, -6 * playerScale);
+        ctx.lineTo(-10 * playerScale + wSwingForward * 10 * playerScale, 0);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(-4 * playerScale, -12 * playerScale);
+        ctx.lineTo(-1 * playerScale + wSwingBackward * 6 * playerScale, -6 * playerScale);
+        ctx.lineTo(-3 * playerScale + wSwingBackward * 10 * playerScale, 0);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(4 * playerScale, -12 * playerScale);
+        ctx.lineTo(1 * playerScale + wSwingBackward * 5 * playerScale, -6 * playerScale);
+        ctx.lineTo(2 * playerScale + wSwingBackward * 9 * playerScale, 0);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(8 * playerScale, -12 * playerScale);
+        ctx.lineTo(14 * playerScale + wSwingForward * 5 * playerScale, -6 * playerScale);
+        ctx.lineTo(12 * playerScale + wSwingForward * 9 * playerScale, 0);
+        ctx.stroke();
+
+        ctx.fillStyle = '#FF8C00';
+        ctx.beginPath();
+        ctx.roundRect(-10 * playerScale, -23 * playerScale, 20 * playerScale, 12 * playerScale, 6);
+        ctx.fill();
+        ctx.strokeStyle = '#AF5200';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.strokeStyle = '#AF5200';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(-5 * playerScale, -20 * playerScale); ctx.lineTo(-1 * playerScale, -17 * playerScale);
+        ctx.moveTo(1 * playerScale, -20 * playerScale); ctx.lineTo(5 * playerScale, -17 * playerScale);
+        ctx.stroke();
+
+        ctx.save();
+        ctx.translate(-7 * playerScale, -24 * playerScale);
+        ctx.fillStyle = '#FF8C00';
+        ctx.beginPath();
+        ctx.arc(0, 0, 4.5 * playerScale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#AF5200';
+        ctx.stroke();
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(-2 * playerScale, 0.5 * playerScale, 0.8 * playerScale, 1.8 * playerScale);
+        ctx.fillRect(0 * playerScale, 0.5 * playerScale, 0.8 * playerScale, 1.8 * playerScale);
+        ctx.restore();
+        break;
+      }
+
+      case 'stinkfly': {
+        ctx.fillStyle = 'rgba(112, 157, 0, 0.35)';
+        ctx.strokeStyle = '#EEFF41';
+        ctx.lineWidth = 1.5;
+
+        const leftWingSweep = -0.45 + Math.sin(Date.now() / 15) * 0.45;
+        const rightWingSweep = 0.45 - Math.sin(Date.now() / 15) * 0.45;
+
+        ctx.beginPath();
+        ctx.ellipse(-14 * playerScale, -26 * playerScale, 18 * playerScale, 5 * playerScale, leftWingSweep, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+
+        ctx.beginPath();
+        ctx.ellipse(14 * playerScale, -26 * playerScale, 18 * playerScale, 5 * playerScale, rightWingSweep, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+
+        ctx.beginPath();
+        ctx.ellipse(-10 * playerScale, -18 * playerScale, 11 * playerScale, 3.5 * playerScale, leftWingSweep * 0.8, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+
+        ctx.beginPath();
+        ctx.ellipse(10 * playerScale, -18 * playerScale, 11 * playerScale, 3.5 * playerScale, rightWingSweep * 0.8, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+
+        ctx.strokeStyle = '#709D00';
+        ctx.lineWidth = 1.8 * playerScale;
+        ctx.beginPath();
+        ctx.moveTo(0, -11 * playerScale);
+        ctx.quadraticCurveTo(-9 * playerScale, -3 * playerScale, -3 * playerScale + Math.sin(runCycle) * 3 * playerScale, 4 * playerScale);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#4A6B00';
+        ctx.lineWidth = 1.8 * playerScale;
+        const swingL = Math.sin(runCycle * 1.2) * 3 * playerScale;
+        const swingR = -Math.sin(runCycle * 1.2) * 3 * playerScale;
+
+        ctx.beginPath();
+        ctx.moveTo(-3 * playerScale, -13 * playerScale);
+        ctx.lineTo(-5 * playerScale + swingL, -2 * playerScale);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(3 * playerScale, -13 * playerScale);
+        ctx.lineTo(5 * playerScale + swingR, -2 * playerScale);
+        ctx.stroke();
+
+        ctx.fillStyle = '#709D00';
+        ctx.beginPath();
+        ctx.roundRect(-5.5 * playerScale, -25 * playerScale, 11 * playerScale, 14 * playerScale, 4);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.save();
+        ctx.translate(0, -29 * playerScale);
+        ctx.fillStyle = '#709D00';
+        ctx.beginPath();
+        ctx.arc(0, 0, 4.2 * playerScale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#FFE000';
+        ctx.beginPath();
+        ctx.arc(-3.5 * playerScale, -2 * playerScale, 1.4 * playerScale, 0, Math.PI * 2);
+        ctx.arc(3.5 * playerScale, -2 * playerScale, 1.4 * playerScale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        break;
+      }
+
+      case 'cannonbolt': {
+        if (isSliding) {
+          ctx.save();
+          const spinSpin = Date.now() / 11;
+          ctx.rotate(spinSpin);
+
+          ctx.shadowColor = '#FFC107';
+          ctx.shadowBlur = 14;
+
+          ctx.fillStyle = '#ECECEC';
+          ctx.beginPath();
+          ctx.arc(0, 0, 14 * playerScale, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#DDD';
+          ctx.stroke();
+
+          ctx.fillStyle = '#E6C300';
+          for (let i = 0; i < 4; i++) {
+            ctx.rotate(Math.PI / 2);
+            ctx.beginPath();
+            ctx.arc(0, 0, 14 * playerScale, -0.4, 0.4);
+            ctx.lineTo(0, 0);
+            ctx.closePath();
+            ctx.fill();
+          }
+          ctx.restore();
+        } else {
+          const cwSwing = Math.sin(runCycle);
+          ctx.shadowColor = '#CCCCCC';
+          ctx.shadowBlur = 8;
+
+          ctx.strokeStyle = '#BDBDBD';
+          ctx.lineWidth = 4 * playerScale;
+          ctx.beginPath();
+          ctx.moveTo(-5 * playerScale, -12 * playerScale);
+          ctx.lineTo(-9 * playerScale + cwSwing * 3 * playerScale, 0);
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.moveTo(5 * playerScale, -12 * playerScale);
+          ctx.lineTo(9 * playerScale - cwSwing * 3 * playerScale, 0);
+          ctx.stroke();
+
+          ctx.fillStyle = '#ECECEC';
+          ctx.beginPath();
+          ctx.arc(0, -21 * playerScale, 11 * playerScale, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#B3B3B3';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          ctx.fillStyle = '#E6C300';
+          ctx.beginPath();
+          ctx.ellipse(-10 * playerScale, -22 * playerScale, 4 * playerScale, 8 * playerScale, -0.4, 0, Math.PI * 2);
+          ctx.ellipse(10 * playerScale, -22 * playerScale, 4 * playerScale, 8 * playerScale, 0.4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.strokeStyle = '#ECECEC';
+          ctx.lineWidth = 4.2 * playerScale;
+          ctx.beginPath();
+          ctx.moveTo(-11 * playerScale, -22 * playerScale);
+          ctx.lineTo(-18 * playerScale, -14 * playerScale + Math.cos(runCycle) * 6 * playerScale);
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.moveTo(11 * playerScale, -22 * playerScale);
+          ctx.lineTo(18 * playerScale, -14 * playerScale - Math.cos(runCycle) * 6 * playerScale);
+          ctx.stroke();
+        }
+        break;
+      }
+
+      case 'ripjaws': {
+        ctx.shadowColor = '#16A085';
+        ctx.shadowBlur = 10;
+
+        const rjlSwing = Math.sin(runCycle);
+        const rjrSwing = -Math.sin(runCycle);
+
+        ctx.strokeStyle = '#114D3F';
+        ctx.lineWidth = 4 * playerScale;
+        ctx.lineCap = 'round';
+
+        ctx.beginPath();
+        ctx.moveTo(-4 * playerScale, -14 * playerScale);
+        ctx.lineTo(-7 * playerScale + rjlSwing * 4.5 * playerScale, -7 * playerScale);
+        ctx.lineTo(-6 * playerScale + rjlSwing * 8 * playerScale, 0);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(4 * playerScale, -14 * playerScale);
+        ctx.lineTo(7 * playerScale + rjrSwing * 4.5 * playerScale, -7 * playerScale);
+        ctx.lineTo(6 * playerScale + rjrSwing * 8 * playerScale, 0);
+        ctx.stroke();
+
+        ctx.fillStyle = '#114D3F';
+        ctx.beginPath();
+        ctx.roundRect(-6 * playerScale, -27 * playerScale, 12 * playerScale, 13 * playerScale, 4);
+        ctx.fill();
+        ctx.strokeStyle = '#1FFFD3';
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+
+        ctx.fillStyle = '#16A085';
+        ctx.beginPath();
+        ctx.moveTo(-6 * playerScale, -24 * playerScale);
+        ctx.lineTo(-15 * playerScale, -27 * playerScale);
+        ctx.lineTo(-6 * playerScale, -16 * playerScale);
+        ctx.fill();
+
+        ctx.strokeStyle = '#16A085';
+        ctx.lineWidth = 3.2 * playerScale;
+        ctx.beginPath();
+        ctx.moveTo(-6 * playerScale, -25 * playerScale);
+        ctx.lineTo(-14 * playerScale, -18 * playerScale + armSwing * 6 * playerScale);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(6 * playerScale, -25 * playerScale);
+        ctx.lineTo(14 * playerScale, -18 * playerScale - armSwing * 6 * playerScale);
+        ctx.stroke();
+
+        ctx.save();
+        ctx.translate(0, -32 * playerScale);
+        ctx.fillStyle = '#114D3F';
+        ctx.beginPath();
+        ctx.arc(0, 0, 4.5 * playerScale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#1FFFD3';
+        ctx.stroke();
+
+        ctx.strokeStyle = '#1FFFD3';
+        ctx.lineWidth = 1.2 * playerScale;
+        ctx.beginPath();
+        ctx.moveTo(0, -4.5 * playerScale);
+        ctx.quadraticCurveTo(8 * playerScale, -8 * playerScale, 6 * playerScale, -12 * playerScale);
+        ctx.stroke();
+
+        ctx.fillStyle = '#2FFFF3';
+        ctx.shadowColor = '#2FFFF3';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(6 * playerScale, -12 * playerScale, 1.8 * playerScale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        break;
+      }
+
+      default: {
+        ctx.strokeStyle = '#00FF00';
+        ctx.lineWidth = 3.5;
+        const fallbackSwing = Math.sin(runCycle);
+        
+        ctx.beginPath();
+        ctx.moveTo(-3 * playerScale, -14 * playerScale);
+        ctx.lineTo(-5 * playerScale + fallbackSwing * 6 * playerScale, 0);
+        ctx.moveTo(3 * playerScale, -14 * playerScale);
+        ctx.lineTo(5 * playerScale - fallbackSwing * 6 * playerScale, 0);
+        ctx.stroke();
+
+        ctx.fillStyle = baseColor;
+        ctx.beginPath();
+        ctx.roundRect(-5.5 * playerScale, -26 * playerScale, 11 * playerScale, 12 * playerScale, 4);
+        ctx.fill();
+        break;
+      }
+    }
+
+    // 3. SUPERIMPOSE ACTIVE GLOWING HOURGLASS OMNITRIX EMBLEM ON CHEST (THE SEAL OF ALIEN TRANSFORMATION!)
+    const omnitrixY = isSliding ? -19 * playerScale : -22 * playerScale;
+    ctx.fillStyle = '#0F1215';
+    ctx.strokeStyle = '#00FF00';
+    ctx.lineWidth = 1.5 * playerScale;
+    ctx.beginPath();
+    ctx.arc(0, omnitrixY, 4.2 * playerScale, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#00FF7F';
+    ctx.shadowColor = '#00FF00';
+    ctx.shadowBlur = 6;
+    ctx.beginPath();
+    ctx.moveTo(-1.6 * playerScale, omnitrixY - 1.6 * playerScale);
+    ctx.lineTo(1.6 * playerScale, omnitrixY - 1.6 * playerScale);
+    ctx.lineTo(-1.6 * playerScale, omnitrixY + 1.6 * playerScale);
+    ctx.lineTo(1.6 * playerScale, omnitrixY + 1.6 * playerScale);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore(); // restore core transform matrix context
   };
+
 
   return (
     <div className="w-full max-w-5xl mx-auto flex flex-col items-center select-none p-2 animate-fade-in">
