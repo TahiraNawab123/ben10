@@ -7,10 +7,28 @@ interface Props {
 }
 
 export const AlienAvatar: React.FC<Props> = ({ id, className = 'w-32 h-32', glow = true }) => {
+  const [imgLoaded, setImgLoaded] = useState(false);
   const [imgError, setImgError] = useState(false);
   const filterId = `neon-glow-${id}`;
 
   const imagePath = `/creatures/${id}.jpg`;
+
+  // Pre-check if this image was already preloaded in App.tsx
+  React.useEffect(() => {
+    // Reset state for new alien id
+    setImgLoaded(false);
+    setImgError(false);
+    
+    if (typeof window !== 'undefined') {
+      const cache = (window as any)._ben10ImageCache;
+      if (cache && cache[id]) {
+        const cachedImg = cache[id];
+        if (cachedImg.complete && cachedImg.naturalWidth > 0) {
+          setImgLoaded(true);
+        }
+      }
+    }
+  }, [id]);
 
   const renderSvgFallback = () => {
     switch (id) {
@@ -159,8 +177,65 @@ export const AlienAvatar: React.FC<Props> = ({ id, className = 'w-32 h-32', glow
 
   return (
     <div className={`relative flex items-center justify-center select-none overflow-hidden rounded-full ${className}`}>
-      {!imgError ? (
-        <div className="relative w-full h-full flex items-center justify-center p-0.5">
+      
+      {/* 1. Underlying High-Fidelity Vector SVG Face - RENDERED INSTANTLY with 0ms delay */}
+      <svg
+        viewBox="0 0 100 100"
+        className="w-full h-full drop-shadow-[0_0_15px_rgba(50,205,50,0.4)]"
+      >
+        <defs>
+          <filter id={filterId} x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+
+          {id === 'heatblast' && (
+            <>
+              <linearGradient id="heatblast-grad-1" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#FF8C00" />
+                <stop offset="50%" stopColor="#FF4D00" />
+                <stop offset="100%" stopColor="#8B0000" />
+              </linearGradient>
+              <linearGradient id="heatblast-grad-2" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#FFF700" />
+                <stop offset="100%" stopColor="#FF4D00" />
+              </linearGradient>
+            </>
+          )}
+        </defs>
+
+        {/* Circular tech background placeholder */}
+        <circle
+          cx="50"
+          cy="50"
+          r="45"
+          fill="rgba(5, 12, 5, 0.85)"
+          stroke="rgba(50, 205, 50, 0.25)"
+          strokeWidth="2"
+        />
+
+        {/* Tech decorative crosshair markers */}
+        <line x1="12" y1="50" x2="18" y2="50" stroke="rgba(50, 205, 50, 0.4)" strokeWidth="1.5" />
+        <line x1="82" y1="50" x2="88" y2="50" stroke="rgba(50, 205, 50, 0.4)" strokeWidth="1.5" />
+        <line x1="50" y1="12" x2="50" y2="18" stroke="rgba(50, 205, 50, 0.4)" strokeWidth="1.5" />
+        <line x1="50" y1="82" x2="50" y2="88" stroke="rgba(50, 205, 50, 0.4)" strokeWidth="1.5" />
+
+        {renderSvgFallback()}
+      </svg>
+
+      {/* 2. Overlapping High-Res Real Hologram Photo Image - Loads in background and fades in smoothly */}
+      {!imgError && (
+        <div 
+          className="absolute inset-[6%] flex items-center justify-center p-0.5 z-10 rounded-full overflow-hidden transition-all duration-300"
+          style={{
+            opacity: imgLoaded ? 1 : 0,
+            transform: imgLoaded ? 'scale(1)' : 'scale(0.9)',
+            background: 'rgba(5, 12, 5, 0.95)'
+          }}
+        >
           {/* Hologram Matrix background effect */}
           <div className="absolute inset-0 bg-[#001500]/65 rounded-full border border-[#00ff00]/40 overflow-hidden shadow-[inset_0_0_15px_rgba(0,255,0,0.4)]">
             {/* Scanlines layer */}
@@ -172,14 +247,13 @@ export const AlienAvatar: React.FC<Props> = ({ id, className = 'w-32 h-32', glow
             <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-[#00ff00]/10 to-transparent rounded-full animate-spin" style={{ animationDuration: '3.5s' }}></div>
           </div>
 
-          {/* Creature Image from Uploads */}
           <img
             src={imagePath}
             alt={id}
+            onLoad={() => setImgLoaded(true)}
             onError={() => setImgError(true)}
-            className="w-[88%] h-[88%] object-contain rounded-full relative z-10 filter transition-all duration-300"
+            className="w-[88%] h-[88%] object-contain rounded-full relative z-10 transition-all duration-300"
             style={{
-              // Perfect Hologram Styling mapping to green screen watch display logic:
               filter: 'brightness(1.1) saturate(1.25) contrast(1.15) drop-shadow(0 0 8px rgba(0, 255, 0, 0.5))',
             }}
             referrerPolicy="no-referrer"
@@ -198,53 +272,6 @@ export const AlienAvatar: React.FC<Props> = ({ id, className = 'w-32 h-32', glow
             <div className="absolute bottom-6 right-6 w-1 h-1 rounded-full bg-[#00ff00]"></div>
           </div>
         </div>
-      ) : (
-        <svg
-          viewBox="0 0 100 100"
-          className="w-full h-full drop-shadow-[0_0_15px_rgba(50,205,50,0.4)]"
-        >
-          <defs>
-            <filter id={filterId} x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="3" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-
-            {id === 'heatblast' && (
-              <>
-                <linearGradient id="heatblast-grad-1" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#FF8C00" />
-                  <stop offset="50%" stopColor="#FF4D00" />
-                  <stop offset="100%" stopColor="#8B0000" />
-                </linearGradient>
-                <linearGradient id="heatblast-grad-2" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#FFF700" />
-                  <stop offset="100%" stopColor="#FF4D00" />
-                </linearGradient>
-              </>
-            )}
-          </defs>
-
-          {/* Circular tech background placeholder */}
-          <circle
-            cx="50"
-            cy="50"
-            r="45"
-            fill="rgba(5, 12, 5, 0.85)"
-            stroke="rgba(50, 205, 50, 0.25)"
-            strokeWidth="2"
-          />
-
-          {/* Tech decorative crosshair markers */}
-          <line x1="12" y1="50" x2="18" y2="50" stroke="rgba(50, 205, 50, 0.4)" strokeWidth="1.5" />
-          <line x1="82" y1="50" x2="88" y2="50" stroke="rgba(50, 205, 50, 0.4)" strokeWidth="1.5" />
-          <line x1="50" y1="12" x2="50" y2="18" stroke="rgba(50, 205, 50, 0.4)" strokeWidth="1.5" />
-          <line x1="50" y1="82" x2="50" y2="88" stroke="rgba(50, 205, 50, 0.4)" strokeWidth="1.5" />
-
-          {renderSvgFallback()}
-        </svg>
       )}
     </div>
   );

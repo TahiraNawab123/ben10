@@ -1,5 +1,5 @@
 {
-  "name": "Ben 10",
+  "name": "Ben 10 Omnitrix Runner",
   "description": "An action-packed Ben 10 themed 3-lane endless-runner game with an interactive Omnitrix watch selection interface and high-performance pseudo-3D running gameplay.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
