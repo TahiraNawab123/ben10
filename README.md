@@ -9,7 +9,6 @@
 ![Android](https://img.shields.io/badge/Android-API%2024+-3DDC84?style=for-the-badge&logo=android&logoColor=white)
 ![URP](https://img.shields.io/badge/Render-URP-8A2BE2?style=for-the-badge)
 ![Status](https://img.shields.io/badge/Status-In%20Development-yellow?style=for-the-badge)
-![License](https://img.shields.io/badge/License-Proprietary-lightgrey?style=for-the-badge)
 
 </div>
 
