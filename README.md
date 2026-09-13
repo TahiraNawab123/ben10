@@ -159,21 +159,6 @@ Every character is an `AlienData` asset with a `portrait` (select-screen sprite)
 
 ---
 
-## Publishing to Google Play
-
-| Step | Notes |
-|---|---|
-| Play Console account | One-time $25 registration |
-| Package name | Set `com.yourcompany.yourgame` in Player Settings **before** first release — can't change later |
-| Build format | `.aab` (App Bundle), not raw APK |
-| Signing | Use Play App Signing |
-| Target/compile SDK | Meet Google's current minimum at submission time |
-| Store listing | Icon, feature graphic, screenshots, description, privacy policy URL |
-| Compliance forms | Content rating questionnaire + Data safety form |
-| Testing | Internal testing track on real devices before production |
-
----
-
 ## Legal & IP
 
 > Ben 10, its aliens, and their names/likenesses are trademarks/copyrights of Cartoon Network / Warner Bros. Discovery.
