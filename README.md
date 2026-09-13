@@ -1,4 +1,4 @@
-# Ben10 Runner (working title)
+# Ben10 
 
 An endless-runner mobile game (Subway Surfers-style lane running, jumping, and sliding) built around a **sequential character-unlock system**: you start with one runnable form, and unlock the next of 10 total characters as you earn coins by playing. Built in Unity for Android (and portable to iOS later).
 
