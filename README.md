@@ -1,244 +1,193 @@
-# Ben10 
+<div align="center">
 
-An endless-runner mobile game (Subway Surfers-style lane running, jumping, and sliding) built around a **sequential character-unlock system**: you start with one runnable form, and unlock the next of 10 total characters as you earn coins by playing. Built in Unity for Android (and portable to iOS later).
+# 🛸 Ben10 Runner
 
-> **IP note:** This project is themed around a Ben 10-style "10 unlockable
-> alien transformations" concept, but the codebase and assets in this repo do
-> **not** use Cartoon Network's copyrighted character names/art. The 10 roster
-> slots are generic power-archetypes (Speed, Flight, Magnet, Giant, Shield,
-> etc.) so the project is safe to publish commercially once you add your own
-> or licensed artwork. See [Legal & IP](#legal--ip) before you publish.
+**An endless-runner mobile game with a sequential alien-transformation unlock system**
 
----
+![Unity](https://img.shields.io/badge/Unity-2022.3%20LTS-000000?style=for-the-badge&logo=unity&logoColor=white)
+![C#](https://img.shields.io/badge/C%23-239120?style=for-the-badge&logo=csharp&logoColor=white)
+![Android](https://img.shields.io/badge/Android-API%2024+-3DDC84?style=for-the-badge&logo=android&logoColor=white)
+![URP](https://img.shields.io/badge/Render-URP-8A2BE2?style=for-the-badge)
+![Status](https://img.shields.io/badge/Status-In%20Development-yellow?style=for-the-badge)
+![License](https://img.shields.io/badge/License-Proprietary-lightgrey?style=for-the-badge)
 
-## Table of contents
-- [Tech stack](#tech-stack)
-- [Project status](#project-status)
-- [Architecture overview](#architecture-overview)
-- [Folder structure](#folder-structure)
-- [Getting started](#getting-started)
-- [How the unlock system works](#how-the-unlock-system-works)
-- [Adding your own art](#adding-your-own-art)
-- [Roadmap](#roadmap)
-- [Publishing to Google Play](#publishing-to-google-play)
-- [Legal & IP](#legal--ip)
+</div>
 
 ---
 
-## Tech stack
+Subway Surfers-style lane running, jumping, and sliding — built around **10 unlockable characters**. Players start with one runnable form and unlock the rest, one at a time, by earning coins during runs.
 
-| Layer | Choice | Why |
-|---|---|---|
-| Engine | **Unity 2022 LTS** (2022.3.x) | Long-term-support version, mature 3D/2D pipeline, best-documented path from editor to a signed Android App Bundle. |
-| Language | **C#** | Matches your existing OOP/DSA background directly. |
-| Render pipeline | **URP (Universal Render Pipeline)** | Lightweight, mobile-optimized, good default for a stylized runner. |
-| Physics/movement | `CharacterController` (kinematic) | Predictable, jitter-free lane movement — the standard choice for runner games over full rigidbody physics. |
-| UI | **Unity UI (uGUI) + TextMeshPro** | Native to Unity, no extra packages, fine for menus/HUD at this scale. |
-| Persistence | Local JSON file (`Application.persistentDataPath`) via a custom `SaveSystem` | Simple, dependency-free, easy to later swap for cloud save. |
-| Data authoring | **ScriptableObjects** (`AlienData`, `AlienDatabase`) | Lets you add/tune the 10 characters from the Inspector without touching code. |
-| Input | Unity legacy `Input` (touch + mouse-swipe fallback for editor testing) | Simplest reliable option for swipe gestures; can be swapped for the new Input System later if you want rebindable controls. |
-| Version control | Git + [Git LFS](https://git-lfs.com/) recommended once real art/audio assets are added | Unity binary assets (textures, models, `.unity` scenes) get large fast. |
-| Target platform | Android (API 24+ recommended), portable to iOS | Unity's Android Build Support module handles the `.aab` export Google Play requires. |
-| Optional later additions | Google Play Games Services (leaderboards/achievements), AdMob (rewarded ads for coins/revives), Firebase Analytics/Crashlytics | Common monetization/analytics stack for this genre — not wired in yet, added as a later milestone so the core game ships clean first. |
+> **IP notice** — This project is inspired by the "10 transforming aliens" concept but does not use Cartoon Network's copyrighted names, art, or the Omnitrix design. Full details in [Legal & IP](#️-legal--ip).
 
 ---
 
-## Project status
+## Table of Contents
 
-This repository previously contained no game code (just a placeholder
-README). This commit adds a **from-scratch Unity project scaffold**: all core
-gameplay systems as C# scripts, ScriptableObject-driven alien data, and a
-generator tool for the starter roster. What's **not** included yet, because it
-has to be built inside the Unity Editor (scenes/prefabs are binary and don't
-translate well to hand-written files):
-
-- The actual `.unity` scenes (Boot, Menu, Gameplay)
-- Prefabs (player, obstacles, coins, track chunks, UI screens)
-- Art, animations, and audio
-
-The [Getting started](#getting-started) section walks through wiring these up
-inside the Editor using the scripts already here.
+- [Tech Stack](#-tech-stack)
+- [Project Status](#-project-status)
+- [Architecture](#-architecture)
+- [Folder Structure](#-folder-structure)
+- [Getting Started](#-getting-started)
+- [Unlock System](#-unlock-system)
+- [Adding Your Own Art](#-adding-your-own-art)
+- [Roadmap](#-roadmap)
+- [Publishing to Google Play](#-publishing-to-google-play)
+- [Legal & IP](#️-legal--ip)
 
 ---
 
-## Architecture overview
+## Tech Stack
 
-```
-GameManager (persistent)          <- run state machine, coins, distance
-AlienUnlockManager (persistent)   <- sequential unlock logic, current selection
-        |
-        v
-AlienDatabase (ScriptableObject)  <- ordered list of AlienData
-        |
-        v
-AlienData (ScriptableObject) x10  <- per-character stats/art/ability
+| Layer | Technology |
+|---|---|
+| Engine | Unity 2022.3 LTS |
+| Language | C# |
+| Render Pipeline | URP (Universal Render Pipeline) |
+| Movement | `CharacterController` (kinematic) |
+| UI | uGUI + TextMeshPro |
+| Persistence | Local JSON (`Application.persistentDataPath`) via custom `SaveSystem` |
+| Data Authoring | ScriptableObjects (`AlienData`, `AlienDatabase`) |
+| Input | Touch swipe (Unity legacy Input, mouse fallback in-editor) |
+| Version Control | Git + Git LFS (recommended once art/audio land) |
+| Target Platform | Android (API 24+), portable to iOS |
+| Planned | Google Play Games Services · AdMob · Firebase Analytics/Crashlytics |
 
-Gameplay scene:
-  RunBootstrapper  -- applies AlienUnlockManager.Selected to --> PlayerController
-  PlayerController -- lane switch / jump / slide / forward speed
-  SwipeInput        -- fires swipe events, decoupled from movement
-  AbilityRuntime    -- applies magnet/smash abilities each frame
-  ChunkSpawner      -- spawns/recycles pre-built track chunk prefabs
-  Obstacle / Collectible -- trigger colliders reporting back to PlayerController/GameManager
-  CameraFollow      -- chase camera
+<details>
+<summary><b>Why these choices?</b></summary>
 
-UI:
-  MainMenuUI -> CharacterSelectUI (AlienSlotUI per character) -> HUDManager (during run) -> GameOverUI
-```
+- **Unity 2022 LTS** — most mature, best-documented path from editor to a signed Android App Bundle.
+- **CharacterController over Rigidbody** — predictable, jitter-free lane movement; the standard choice for runner games.
+- **ScriptableObjects for character data** — add or tune all 10 characters from the Inspector, no code changes.
+- **Local JSON save** — zero dependencies to start; swappable for cloud save later without touching calling code.
+- **Legacy Input for swipes** — simplest reliable option now; swap for the new Input System later if rebindable controls are needed.
 
-Design principle used throughout: **systems talk through events, not direct
-polling**, so you can swap/extend pieces (e.g. replace SaveSystem with a cloud
-backend, or add a new AbilityType) without rewriting everything around it.
+</details>
 
 ---
 
-## Folder structure
+## Project Status
+
+This repo previously had no game code. This scaffold adds all core gameplay systems as production-ready C# scripts, a ScriptableObject-driven character system, and a starter-roster generator tool.
+
+**Not included yet** (built inside the Unity Editor, not hand-writable as text files):
+
+| Missing piece | Why |
+|---|---|
+| `.unity` scenes (Boot, Menu, Gameplay) | Binary, editor-authored |
+| Prefabs (player, obstacles, coins, chunks, UI) | Binary, editor-authored |
+| Art, animations, audio | Not code |
+
+→ See [`docs/SCENE_SETUP.md`](docs/SCENE_SETUP.md) for a step-by-step checklist to build these.
+
+---
+
+**Design principle:** systems communicate via events, not polling — swap `SaveSystem` for a cloud backend or add a new `AbilityType` without rewriting the rest.
+
+---
+
+## Folder Structure
 
 ```
 Assets/
-  Scripts/
-    Core/       GameManager, SaveSystem, RunBootstrapper
-    Player/     PlayerController, SwipeInput
-    Aliens/     AlienData, AlienDatabase, AlienUnlockManager
-    World/      Obstacle, Collectible, ChunkSpawner, CameraFollow
-    UI/         MainMenuUI, CharacterSelectUI, AlienSlotUI, HUDManager, GameOverUI
-    PowerUps/   AbilityRuntime
-    Editor/     AlienRosterGenerator (menu tool, editor-only)
-  ScriptableObjects/Aliens/   AlienData + AlienDatabase assets live here (generated)
-  Prefabs/      (empty - add player, obstacle, coin, chunk, UI prefabs here)
-  Scenes/       (empty - add Boot/Menu/Gameplay scenes here)
-  Art/          Characters/ Environment/ UI/  (empty - drop your art here)
-  Audio/        (empty)
-docs/           extra design notes
+├── Scripts/
+│   ├── Core/       GameManager · SaveSystem · RunBootstrapper
+│   ├── Player/     PlayerController · SwipeInput
+│   ├── Aliens/     AlienData · AlienDatabase · AlienUnlockManager
+│   ├── World/      Obstacle · Collectible · ChunkSpawner · CameraFollow
+│   ├── UI/         MainMenuUI · CharacterSelectUI · AlienSlotUI · HUDManager · GameOverUI
+│   ├── PowerUps/   AbilityRuntime
+│   └── Editor/     AlienRosterGenerator (menu tool)
+├── ScriptableObjects/Aliens/   Generated AlienData + AlienDatabase assets
+├── Prefabs/        Player, obstacle, coin, chunk, UI prefabs (add your own)
+├── Scenes/         Boot / Menu / Gameplay (add your own)
+├── Art/            Characters/ · Environment/ · UI/ (add your own)
+└── Audio/          (add your own)
+docs/               Extra design & setup notes
 ```
 
 ---
 
-## Getting started
+## Getting Started
 
-1. **Install Unity Hub** and Unity **2022.3 LTS** (any recent patch version)
-   with the **Android Build Support** module (includes SDK & NDK) checked
-   during install.
-2. Create a new **3D (URP)** project in Unity Hub, then copy the contents of
-   this repo's `Assets/` folder into your new project's `Assets/` folder
-   (or open this repo's folder directly as the Unity project if you `git init`
-   it as one from the start).
-3. In Unity, run **Ben10Runner > Generate Starter Alien Roster** from the menu
-   bar. This creates `AlienDatabase.asset` and 10 `AlienData` assets under
-   `Assets/ScriptableObjects/Aliens/` with placeholder stats already filled in.
+<details open>
+<summary><b>Step-by-step setup</b></summary>
+
+1. Install **Unity Hub** → **Unity 2022.3 LTS** with the **Android Build Support** module.
+2. Create a new **3D (URP)** project and copy this repo's `Assets/` folder in (or open this repo as the project directly).
+3. Run **`Ben10Runner ▸ Generate Starter Alien Roster`** from the Unity menu bar — auto-creates `AlienDatabase.asset` + 10 `AlienData` assets with placeholder stats.
 4. Build three scenes:
-   - **Boot** — an empty GameObject with `GameManager` and
-     `AlienUnlockManager` components (assign the generated `AlienDatabase`),
-     set to `DontDestroyOnLoad` (already handled in `Awake()`), then loads
-     into Menu.
-   - **Menu** — Canvas with `MainMenuUI`, and a second Canvas/panel with
-     `CharacterSelectUI` + a grid of `AlienSlotUI` prefab instances (bind
-     `slotPrefab` to a small prefab with an Image, lock overlay, and TMP text).
-   - **Gameplay** — the player GameObject (`CharacterController` +
-     `PlayerController` + `AbilityRuntime` + `SwipeInput`), a `ChunkSpawner`
-     with a few hand-built track chunk prefabs (ground + obstacles + coins as
-     children, each with `Obstacle`/`Collectible` components and trigger
-     colliders), a `CameraFollow` on the Main Camera, `RunBootstrapper` wired
-     to the player, and a HUD Canvas with `HUDManager`.
-5. Build 3-5 obstacle prefabs and a coin prefab, arrange a handful into 2-3
-   track "chunk" prefabs (~20m each, matching `ChunkSpawner.chunkLength`), and
-   assign them to `ChunkSpawner.chunkPrefabs`.
-6. Press Play. Use the mouse (click-drag) in the Editor to simulate swipes;
-   `SwipeInput` auto-switches to real touch input on-device.
+   | Scene | Contents |
+   |---|---|
+   | **Boot** | `GameManager` + `AlienUnlockManager` (assign the generated database), `DontDestroyOnLoad` |
+   | **Menu** | `MainMenuUI` → `CharacterSelectUI` with an `AlienSlotUI` grid |
+   | **Gameplay** | Player (`CharacterController` + `PlayerController` + `AbilityRuntime` + `SwipeInput`), `ChunkSpawner`, `CameraFollow`, `RunBootstrapper`, HUD Canvas |
+5. Build 3–5 obstacle prefabs + a coin prefab, arrange into 2–3 track "chunk" prefabs (~20m each), assign to `ChunkSpawner.chunkPrefabs`.
+6. Press **Play**. Click-drag with the mouse to simulate swipes in-editor; real touch input takes over on-device.
 
-If any of steps 3-6 feel unfamiliar, that's expected at this stage — those are
-exactly the kind of "wire this component to that field in the Inspector"
-steps that are easiest to do interactively with AI help open next to the
-Unity Editor, since it's very visual/GUI-driven work.
+Full checklist with field-by-field wiring: [`docs/SCENE_SETUP.md`](docs/SCENE_SETUP.md)
+
+</details>
 
 ---
 
-## How the unlock system works
+## Unlock System
 
-- `AlienDatabase` holds all 10 `AlienData` assets, ordered by `unlockOrder`
-  (0 = starter, always unlocked).
-- `AlienUnlockManager.TryUnlockNext()` looks at the **next locked alien in
-  order** and spends coins from the persistent wallet (`GameManager.totalCoins`,
-  backed by `SaveSystem`) — you can't unlock alien #5 before #4, matching your
-  "unlock one by one" requirement.
-- Coins persist across runs (they're added to the wallet as you collect them
-  mid-run via `Collectible` → `GameManager.AddCoins`), so progress toward the
-  next unlock is never lost even if a run ends early.
-- Once unlocked, an alien stays unlocked forever (`SaveSystem.Data.unlockedAlienIds`)
-  and can be freely selected from `CharacterSelectUI` for any future run.
-- Each alien can carry a passive gameplay effect (`AbilityType`): speed boost,
-  higher jump, coin magnet, extra shield, or obstacle-smashing — applied via
-  `PlayerController`'s multipliers and `AbilityRuntime`. Add new ability types
-  as you design more characters.
+- `AlienDatabase` holds all 10 `AlienData` assets, ordered by `unlockOrder` (0 = starter, always unlocked).
+- `AlienUnlockManager.TryUnlockNext()` only ever unlocks the **next** locked alien in sequence, spending coins from the persistent wallet — no skipping ahead.
+- Coins persist across runs, so progress toward the next unlock is never lost.
+- Unlocked aliens stay unlocked forever and are freely selectable pre-run.
+- Each alien can carry a passive `AbilityType` — Speed Boost, Higher Jump, Coin Magnet, Extra Shield, Ground Smash — applied via `PlayerController` multipliers + `AbilityRuntime`.
 
 ---
 
-## Adding your own art
+## Adding Your Own Art
 
-Every character is just a `AlienData` asset with a `portrait` (2D sprite, for
-the select screen) and `runnerPrefab` (the 3D model or animated sprite that
-gets instantiated onto the player at runtime via `PlayerController.SwapVisual`).
-Drop new art into `Assets/Art/Characters/`, make a prefab out of it, and drag
-it into the corresponding `AlienData` asset's `runnerPrefab` field — no code
-changes needed. Same pattern for obstacles/coins/environment art under
-`Assets/Art/Environment/` and `Assets/Art/UI/`.
+Every character is an `AlienData` asset with a `portrait` (select-screen sprite) and `runnerPrefab` (model/animation swapped onto the player at runtime). Drop art into `Assets/Art/Characters/`, prefab it, drag it into the asset's `runnerPrefab` field — **no code changes required**. Same pattern for `Environment/` and `UI/` art.
 
 ---
 
 ## Roadmap
 
-- [ ] Build out Boot/Menu/Gameplay scenes and core prefabs in the Editor
+- [ ] Build Boot / Menu / Gameplay scenes + core prefabs
 - [ ] Replace placeholder art with real character/environment art
-- [ ] Add animations (run/jump/slide/death) via Animator Controllers per alien
-- [ ] Add sound effects and background music
-- [ ] Daily rewards / missions to accelerate coin earning
-- [ ] Leaderboards via Google Play Games Services
-- [ ] Rewarded-ad revive / bonus coins via AdMob
-- [ ] Analytics & crash reporting via Firebase
-- [ ] Performance pass (object pooling for obstacles/coins, addressables for
-      art if the build size grows)
+- [ ] Animations (run / jump / slide / death) per alien
+- [ ] Sound effects + music
+- [ ] Daily rewards / missions
+- [ ] Leaderboards (Google Play Games Services)
+- [ ] Rewarded-ad revive / bonus coins (AdMob)
+- [ ] Analytics & crash reporting (Firebase)
+- [ ] Object pooling + Addressables performance pass
 
 ---
 
 ## Publishing to Google Play
 
-High-level checklist for when the game is ready to ship:
-
-1. **Google Play Console account** — one-time $25 registration fee.
-2. **Package name** — set a unique `com.yourcompany.yourgame` identifier in
-   Unity's Player Settings before your first internal release (can't be
-   changed after publishing).
-3. **Build as Android App Bundle (.aab)**, not raw APK — required by Play
-   Console for new apps.
-4. **Signing** — use Play App Signing (Google manages your signing key) unless
-   you have a reason to manage your own keystore.
-5. **Target/compile SDK** — keep these at or above Google's current minimum
-   required API level (check Play Console's requirements page at submission
-   time, since it's raised periodically).
-6. **Store listing assets** — app icon, feature graphic, phone screenshots,
-   short/full description, privacy policy URL (required even for simple
-   games if you collect any data, including via ad SDKs or analytics).
-7. **Content rating questionnaire** and **Data safety form** — both required
-   in Play Console before publishing.
-8. **Internal testing track first** — test on a real device or two before
-   promoting to production.
+| Step | Notes |
+|---|---|
+| Play Console account | One-time $25 registration |
+| Package name | Set `com.yourcompany.yourgame` in Player Settings **before** first release — can't change later |
+| Build format | `.aab` (App Bundle), not raw APK |
+| Signing | Use Play App Signing |
+| Target/compile SDK | Meet Google's current minimum at submission time |
+| Store listing | Icon, feature graphic, screenshots, description, privacy policy URL |
+| Compliance forms | Content rating questionnaire + Data safety form |
+| Testing | Internal testing track on real devices before production |
 
 ---
 
 ## Legal & IP
 
-This project's mechanics are inspired by the "Ben 10" concept of transforming
-between multiple creatures, but Ben 10, its aliens, and their names/likenesses
-are trademarks/copyrights of Cartoon Network / Warner Bros. Discovery. To keep
-this safe to publish commercially:
+> Ben 10, its aliens, and their names/likenesses are trademarks/copyrights of Cartoon Network / Warner Bros. Discovery.
 
-- Don't use official Ben 10 character names, artwork, sounds, or the Omnitrix
-  design in a published build.
-- The included roster (`AlienRosterGenerator`) already uses original names
-  and generic power-archetypes for this reason — feel free to rename them
-  further to your own original characters.
-- If this is purely a personal/portfolio/non-published project, you have more
-  latitude, but it still shouldn't be distributed or monetized.
-- This isn't legal advice — if you're unsure, a quick read of Google Play's
-  [Intellectual Property policy](https://support.google.com/googleplay/android-developer/answer/9888379)
-  or a consult with someone qualified is worth it before you submit.
+- Don't use official Ben 10 names, art, sounds, or the Omnitrix design in a **published** build.
+- The generated roster already uses original names and generic power-archetypes — rename further as you like.
+- Personal/portfolio use only → more latitude, but still don't distribute or monetize with official IP.
+- Not legal advice — see [Google Play's IP policy](https://support.google.com/googleplay/android-developer/answer/9888379) or consult someone qualified before submitting.
+
+---
+
+<div align="center">
+
+Built with 🎮 in Unity
+
+</div>
